@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.user.claude-dashboard</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__BREW_PREFIX__/bin/python3</string>
+    <string>__REPO_PATH__/bin/dashboard.py</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/dashboard.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/dashboard.err</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__BREW_PREFIX__/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>__USER_HOME__</string>
+    <key>CLAUDE_STACK_CONF</key>
+    <string>__REPO_PATH__/stack.conf</string>
+    <key>CLAUDE_STACK_PORT</key>
+    <string>__DASHBOARD_PORT__</string>
+  </dict>
+</dict>
+</plist>

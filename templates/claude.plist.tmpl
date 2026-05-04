@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.user.claude.__PROJECT_NAME__</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string><![CDATA[
+      set -e
+      export PATH="__BREW_PREFIX__/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+
+      # Wenn die Session schon existiert, sind wir fertig
+      if tmux has-session -t __PROJECT_NAME__ 2>/dev/null; then
+        exit 0
+      fi
+
+      cd "__PROJECT_PATH__"
+      mkdir -p .claude
+
+      # Beim ersten Start kann man nicht continuen — Marker-Datei steuert das
+      if [ "__CLAUDE_CONTINUE__" = "true" ] && [ -f .claude/.has-session ]; then
+        CLAUDE_CMD="claude --continue --rc --remote-control-session-name-prefix __PROJECT_NAME__ __CLAUDE_EXTRA_FLAGS__"
+      else
+        CLAUDE_CMD="claude --rc --remote-control-session-name-prefix __PROJECT_NAME__ __CLAUDE_EXTRA_FLAGS__"
+      fi
+
+      # Marker setzen, damit der nächste Start --continue nutzt
+      touch .claude/.has-session
+
+      # tmux session detached starten. Nach Claude-Exit fällt es in eine
+      # zsh-Login-Shell zurück (statt zu sterben), damit launchd nicht in
+      # eine Restart-Schleife läuft. Login-Shell sorgt dafür, dass ~/.zprofile
+      # und ~/.zshrc geladen werden — Oh My Zsh, Theme, Plugins, Aliases sind
+      # dann alle in der Pane verfügbar.
+      tmux new-session -d -s __PROJECT_NAME__ -c "__PROJECT_PATH__" \
+        "$CLAUDE_CMD; exec /bin/zsh -l -i"
+    ]]></string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/claude-__PROJECT_NAME__.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/claude-__PROJECT_NAME__.err</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__BREW_PREFIX__/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>HOME</key>
+    <string>__USER_HOME__</string>
+  </dict>
+</dict>
+</plist>

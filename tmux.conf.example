@@ -1,0 +1,30 @@
+# Optional: ~/.tmux.conf erweitern (oder anlegen)
+#
+# Diese Settings sorgen dafür, dass NEUE tmux-Windows und -Panes (also wenn du
+# innerhalb einer Session per Ctrl+b c oder Ctrl+b " neue aufmachst) ebenfalls
+# eine Login-Shell starten — damit Oh My Zsh, dein Theme, Aliases etc. auch
+# dort verfügbar sind.
+#
+# Inhalte dieser Datei nach ~/.tmux.conf kopieren (anhängen falls schon da)
+# und dann `tmux kill-server && launchctl kickstart -k gui/$(id -u)/com.user.claude.<name>`
+# damit alle Sessions mit der neuen Config neu starten.
+
+# zsh als Default-Shell für neue Panes/Windows, als Login-Shell
+set -g default-command "/bin/zsh -l"
+set -g default-shell "/bin/zsh"
+
+# Ein paar Quality-of-Life-Settings (optional, nimm raus was du nicht magst)
+
+# True-Color-Support (wichtig für viele zsh-Themes mit hübschen Farben)
+set -g default-terminal "screen-256color"
+set -ga terminal-overrides ",*256col*:Tc"
+
+# Maus-Support (Scrollen, Pane-Resize per Drag)
+set -g mouse on
+
+# History buffer größer
+set -g history-limit 50000
+
+# Window/Pane Indizes ab 1 statt 0 (näher an der Tastatur)
+set -g base-index 1
+setw -g pane-base-index 1

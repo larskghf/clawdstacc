@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Attach Claude (tmux)",
+      "type": "shell",
+      "command": "tmux attach-session -t __PROJECT_NAME__ || tmux new-session -A -s __PROJECT_NAME__ 'claude --continue --rc --remote-control-session-name-prefix __PROJECT_NAME__'",
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "focus": true,
+        "echo": false
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "task.allowAutomaticTasks": "on",
+  "terminal.integrated.enablePersistentSessions": true,
+  "terminal.integrated.persistentSessionReviveProcess": "onExitAndWindowClose",
+  "terminal.integrated.defaultProfile.osx": "zsh-login",
+  "terminal.integrated.profiles.osx": {
+    "zsh-login": {
+      "path": "/bin/zsh",
+      "args": ["-l", "-i"]
+    },
+    "tmux-claude": {
+      "path": "tmux",
+      "args": ["new-session", "-A", "-s", "__PROJECT_NAME__"]
+    },
+    "bash": {
+      "path": "/bin/bash",
+      "args": ["-l"]
+    }
+  }
+}
