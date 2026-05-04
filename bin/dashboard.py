@@ -128,10 +128,13 @@ def claude_running_in_pane(pane_pid):
     """Is a claude-like process currently running inside the given tmux pane?"""
     if not pane_pid:
         return False
-    children = sh(f"pgrep -P {shlex.quote(pane_pid)}")
-    for child in children.splitlines():
-        cmd = sh(f"ps -p {shlex.quote(child)} -o command=")
-        if "claude" in cmd.lower() or "node" in cmd.lower():
+    # Check the pane pid itself (the new plist runs claude directly so
+    # claude IS the pane pid) and any descendants (older shell-wrapped
+    # invocations have claude as a child of zsh).
+    pids = [pane_pid] + sh(f"pgrep -P {shlex.quote(pane_pid)}").splitlines()
+    for pid in pids:
+        cmd = sh(f"ps -p {shlex.quote(pid)} -o command=")
+        if "claude" in cmd.lower():
             return True
     return False
 

@@ -36,6 +36,29 @@ tmux_exists() {
   tmux has-session -t "$1" 2>/dev/null
 }
 
+# Is there a claude process running in the named tmux session?
+# Checks the pane pid itself (current plist runs claude directly) and any
+# descendants (older shell-wrapped panes had claude as a child of zsh).
+claude_in_session() {
+  local name="$1"
+  local pane_pid
+  pane_pid="$(tmux display-message -p -t "$name" '#{pane_pid}' 2>/dev/null)"
+  [ -n "$pane_pid" ] || return 1
+  # Pane pid itself
+  if ps -p "$pane_pid" -o command= 2>/dev/null | grep -qi "claude"; then
+    return 0
+  fi
+  # Descendants
+  local children
+  children="$(pgrep -P "$pane_pid" 2>/dev/null || true)"
+  for child in $children; do
+    if ps -p "$child" -o command= 2>/dev/null | grep -qi "claude"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 echo
 bold "╔══════════════════════════════════════════════════════════════╗"; echo
 bold "║                  claude-stack status                         ║"; echo
@@ -99,6 +122,13 @@ else
       printf "%s tmux  " "$(green ●)"
     else
       printf "%s tmux  " "$(red ●)"
+    fi
+
+    # claude status
+    if tmux_exists "$name" && claude_in_session "$name"; then
+      printf "%s claude  " "$(green ●)"
+    else
+      printf "%s claude  " "$(red ●)"
     fi
 
     # launchd status
