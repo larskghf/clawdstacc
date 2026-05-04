@@ -1,12 +1,12 @@
-# Setup-Anleitung
+# Setup walkthrough
 
-Schritt-für-Schritt-Anleitung zum Aufsetzen von claude-stack auf einem Mac mini (oder anderem macOS-Host).
+Step-by-step instructions for setting up claude-stack on a Mac mini (or any other macOS host).
 
-## 1. Mac mini vorbereiten
+## 1. Prepare the host
 
-### Standby verhindern
+### Prevent sleep
 
-Damit der Mac mini deine Sessions dauerhaft am Laufen hält:
+So the host actually keeps your sessions running:
 
 ```bash
 sudo pmset -a sleep 0
@@ -15,174 +15,175 @@ sudo pmset -a powernap 1
 sudo pmset -a womp 1
 ```
 
-In den Systemeinstellungen unter "Batterie / Energie" zusätzlich "Mac automatisch nach Inaktivität schlafen lassen verhindern" aktivieren. Display darf gerne in den Energiesparmodus — nur das System soll wach bleiben.
+In System Settings → Battery / Energy, also enable "Prevent automatic sleeping when display is off". The display can sleep — only the system needs to stay awake.
 
-### Feste IP im Heimnetz
+### Static IP on the LAN
 
-Für stabilen Zugriff sollte der Mac mini eine reservierte IP per DHCP-Reservation im Router bekommen. Die meisten Router (Fritzbox, Unifi, etc.) bieten das unter "DHCP-Server / Statische Leases / IP-Reservierung". MAC-Adresse des Mac mini findest du in den Systemeinstellungen unter "Netzwerk → Details → Hardware".
+For stable access give the host a DHCP reservation in your router. Most routers (Fritzbox, Unifi, OPNsense, …) offer this under "DHCP server / Static leases / IP reservation". The host's MAC address is in System Settings → Network → Details → Hardware.
 
-Notiere dir die IP — du erreichst code-server und Dashboard später unter dieser Adresse.
+Note the IP — you'll reach code-server and the dashboard at it.
 
-### Remote-Zugang von außerhalb
+### Remote access from outside
 
-Wenn du auch von unterwegs (Mobilfunk, fremdes WLAN) auf deinen Mac mini willst, brauchst du einen VPN-Zugang ins Heimnetz. claude-stack ist agnostisch — es geht jeder VPN, solange er den Mac mini per IP erreichbar macht. Üblich:
+If you also want to reach the host from mobile data or someone else's WiFi, you need a VPN into your home network. claude-stack is agnostic — anything works as long as the host is reachable by IP. Common options:
 
-- **Wireguard auf dem Router** (Fritzbox 7590+, OPNsense, Unifi UDM, etc.) — empfohlen, wenn dein Router das unterstützt
-- **OpenVPN auf dem Router** — Standardlösung, etwas älter aber stabil
-- **Wireguard/OpenVPN auf einem Linux-Server im Heimnetz** — wenn der Router selbst kein VPN kann
-- **Apple's eingebautes IPSec** — geht, ist aber zickig zu konfigurieren
+- **Wireguard on the router** (Fritzbox 7590+, OPNsense, Unifi UDM, etc.) — recommended if your router supports it
+- **OpenVPN on the router** — older but stable
+- **Wireguard/OpenVPN on a Linux box on the LAN** — if your router can't VPN
+- **Apple's built-in IPSec** — works, but fiddly to configure
+- **Tailscale** — easiest if you don't want to run your own VPN
 
-Wichtig: Der VPN-Tunnel muss dir den Mac mini per IP erreichbar machen. Wenn du mit dem VPN verbunden bist, sollte `ping <mac-mini-ip>` funktionieren — dann passt's.
+The VPN tunnel just needs to make the host reachable by IP. Once connected, `ping <host-ip>` should work — that's enough.
 
-claude-stack selbst exponiert keine Ports nach außen. Alle Dienste binden auf `0.0.0.0`, das heißt sie sind im Heimnetz erreichbar, aber nicht aus dem Internet. Über VPN bist du logisch im Heimnetz und erreichst sie ganz normal.
+claude-stack itself does not expose any ports to the public internet. Everything binds on `0.0.0.0`, meaning it's reachable on the LAN but not from outside. Over the VPN you're logically on the LAN and reach things normally.
 
-## 2. Tools installieren
+## 2. Install tools
 
 ```bash
-# Homebrew (falls noch nicht vorhanden)
+# Homebrew (skip if already installed)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-# Stack-Dependencies
+# Stack dependencies
 brew install tmux code-server python@3.12
 
 # Claude Code CLI
-# (Native Installer — siehe https://claude.com/code für aktuelle Methoden)
+# (native installer — see https://claude.com/code for current methods)
 curl -fsSL https://claude.com/install.sh | bash
 ```
 
-Nach der Claude-Code-Installation einmalig anmelden:
+After installing Claude Code, log in once:
 
 ```bash
 claude
-# /login befolgen — Pro oder Max Plan nötig für Remote Control
+# follow /login — Pro or Max plan required for Remote Control
 ```
 
-## 3. Shell-Setup für tmux und code-server (wichtig!)
+## 3. Shell setup for tmux and code-server (important!)
 
-Hintergrund: launchd startet Dienste mit einer minimalen Umgebung — keine `~/.zshrc` wird gelesen, kein Oh My Zsh, kein PATH-Setup. Damit deine Terminal-Erfahrung in tmux und im integrierten code-server-Terminal trotzdem mit deiner gewohnten zsh-Konfiguration läuft, sind zwei Dinge zu tun:
+Background: launchd starts services with a minimal environment — `~/.zshrc` is not read, no Oh My Zsh, no PATH from your shell config. To keep terminals in tmux and the integrated code-server terminal usable with your normal zsh setup:
 
-**a) Die `vscode-settings.json.tmpl` (vom Setup automatisch verteilt) nutzt `zsh -l -i` als Default-Profile** — heißt das integrierte Terminal in code-server wird als Login-Shell gestartet, lädt deine `.zprofile` und `.zshrc`, hat damit Theme, Plugins, Aliases. Das passiert automatisch.
+**a) `vscode-settings.json.tmpl` (deployed automatically by setup) sets `zsh -l -i` as the default profile** — the integrated terminal in code-server starts as a login shell, loads `.zprofile` and `.zshrc`, picks up your theme, plugins and aliases. This happens automatically.
 
-**b) Die `claude.plist.tmpl` startet nach Claude-Exit eine `zsh -l -i`** — damit du auch in der tmux-Pane (wenn Claude mal nicht läuft) deine volle Shell-Umgebung hast.
-
-**c) Optional aber empfohlen: `~/.tmux.conf` anlegen** damit auch *neue* tmux-Windows (Ctrl+b c innerhalb einer Session) Login-Shells starten:
+**b) Optional but recommended: drop in `~/.tmux.conf`** so *new* tmux windows (Ctrl+b c inside a session) also start as login shells:
 
 ```bash
 cp ~/claude-stack/tmux.conf.example ~/.tmux.conf
-# ggf. anpassen, dann:
-tmux kill-server  # frischen Start für alle Sessions
+# tweak as desired, then:
+tmux kill-server  # restart all sessions cleanly
 ```
 
-(Das `kill-server` ist okay, weil deine launchd-Plists die Sessions sofort wieder neu starten — und Claude continueert über `--continue` deine Conversation.)
+(`kill-server` is fine because the launchd plists will respawn the sessions immediately, and `--continue` resumes the conversations.)
 
-**Verifizieren:** Nach Setup einmal in eine tmux-Session attachen und prüfen:
+**Verify:** attach to a tmux session and check:
 
 ```bash
-tmux attach -t projekt1
-# Innerhalb: einmal Ctrl+b c für ein neues Window
+tmux attach -t project1
+# inside: Ctrl+b c for a new window
 echo $SHELL              # /bin/zsh
-echo $ZSH                # sollte deinen oh-my-zsh-Pfad zeigen
-which brew               # sollte gefunden werden
+echo $ZSH                # should show your oh-my-zsh path
+which brew               # should be found
 ```
 
-Wenn alle drei Antworten plausibel sind, ist deine Shell-Env in tmux korrekt verfügbar.
+If all three answers look right, your shell environment is correctly available in tmux.
 
-## 4. Projektordner anlegen
+## 4. Lay out project folders
 
-claude-stack erwartet alle deine Projekte in einem Ordner mit Underscore-Prefix im Home-Verzeichnis (oder einem anderen Glob-Pattern, das du in `stack.conf` setzt). Beispiel:
+claude-stack expects every project in a folder with a leading underscore in your home directory (or any other glob you set in `stack.conf`). Example:
 
 ```
-~/_project1/    # Hauptprojekt
+~/_project1/    # main project
 ~/_project2/
 ~/_clientwork/
 ```
 
-Die Underscores helfen, die Stack-verwalteten Projekte von deinen anderen Ordnern abzugrenzen. Im Dashboard und in der Claude-App tauchen sie ohne Underscore auf (`project1`, `project2`, `clientwork`).
+The underscore makes stack-managed projects easy to distinguish from your other folders. They appear in the dashboard and the Claude app without the underscore (`project1`, `project2`, `clientwork`).
 
-Innerhalb jedes Projektordners können beliebig viele Repos liegen — claude-stack startet `claude` immer auf dem Projektordner als Working Directory.
+Each project folder can hold any number of repos — claude-stack always launches `claude` with the project folder as the working directory.
 
-## 5. Repo klonen und konfigurieren
+## 5. Clone and configure
 
 ```bash
-git clone <dein-repo-url> ~/claude-stack
+git clone <your-repo-url> ~/claude-stack
 cd ~/claude-stack
 
-# Config aus Vorlage erzeugen
+# Create the config from the template
 cp stack.conf.example stack.conf
 
-# Anpassen: mindestens CODESERVER_PASSWORD ändern
+# Adjust — at minimum, set CODESERVER_PASSWORD
 $EDITOR stack.conf
 ```
 
-Die wichtigsten Werte in `stack.conf`:
+Most important values in `stack.conf`:
 
-| Variable | Default | Wozu |
+| Variable | Default | Purpose |
 |---|---|---|
-| `PROJECTS_GLOB` | `$HOME/_*` | Wo deine Projektordner liegen |
-| `CODESERVER_BIND` | `0.0.0.0:8443` | Wo code-server lauscht |
-| `CODESERVER_PASSWORD` | `CHANGE_ME` | **Unbedingt ändern.** `openssl rand -base64 24` |
-| `DASHBOARD_PORT` | `8390` | Port für das Status-Dashboard |
-| `CLAUDE_CONTINUE` | `true` | `--continue` beim Auto-Start |
+| `PROJECTS_GLOB` | `$HOME/_*` | Where your project folders are |
+| `EXPLICIT_PROJECTS` | unset | Explicit project list (overrides the glob) |
+| `CODESERVER_BIND` | `0.0.0.0:8443` | Where code-server listens |
+| `CODESERVER_PASSWORD` | `CHANGE_ME` | **Change this.** `openssl rand -base64 24` |
+| `DASHBOARD_PORT` | `8390` | Status dashboard port |
+| `CLAUDE_CONTINUE` | `true` | Use `--continue` on auto-start |
 | `BREW_PREFIX` | `/opt/homebrew` | Apple Silicon. Intel: `/usr/local` |
 
-## 6. Setup ausführen
+## 6. Run setup
 
 ```bash
 ./bin/setup-stack.sh
 ```
 
-Das Script:
-- prüft ob alle Tools installiert sind
-- generiert pro Projekt eine launchd-Plist (`~/Library/LaunchAgents/com.user.claude.<name>.plist`)
-- generiert pro Projekt `.vscode/tasks.json` und `.vscode/settings.json` für Auto-Attach
-- generiert die code-server- und Dashboard-Plists
-- lädt alles in launchd
+The script:
+- checks for required tools and aborts on missing ones
+- generates a launchd plist per project (`~/Library/LaunchAgents/com.user.claude-stack.<name>.plist`)
+- generates `.vscode/tasks.json` and `.vscode/settings.json` per project
+- generates the code-server and dashboard plists
+- removes orphan plists (renamed-away or deleted projects)
+- loads everything into launchd
 
-Idempotent — beliebig oft ausführbar. Wenn du Projekte hinzufügst oder die Config änderst, einfach nochmal laufen lassen.
+It is idempotent — safe to run again whenever you add/remove projects or change config.
 
-## 7. Status prüfen
+## 7. Verify
 
 ```bash
 ./bin/stack-status.sh
 ```
 
-Du solltest sehen: code-server läuft, Dashboard läuft, jedes Projekt hat tmux + agent + (nach erstem Start) eine Session.
+You should see: code-server running, dashboard running, every project with `tmux ●` and `agent ●` green.
 
-Im Browser:
-- code-server: `http://<mac-mini-ip>:8443`
-- Dashboard: `http://<mac-mini-ip>:8390`
+In the browser:
+- code-server: `http://<host>:8443`
+- Dashboard: `http://<host>:8390`
 
-Auf dem Phone: Claude-App → Code-Tab. Die Sessions sollten als `<hostname>-<projektname>-<random>` auftauchen, jeweils mit grünem Status-Dot.
+In the Claude app: Code tab. Sessions should appear as `<hostname>-<projectname>-<random>`, each with a green status dot.
 
-## 8. Erstes Mal mit code-server arbeiten
+## 8. First time in code-server
 
-Im Browser code-server öffnen, Passwort eingeben. Beim ersten Öffnen eines Projekts (`File → Open Folder → ~/_project1`):
+Open code-server in the browser, enter the password. The first time you open a project (`File → Open Folder → ~/_project1`):
 
-1. VSCode fragt: "Do you trust the authors of the files?" → Yes
-2. VSCode fragt: "Allow automatic tasks?" → Allow Once oder Always Allow
-3. Das Terminal-Panel öffnet sich automatisch und attached an die laufende tmux-Session
+1. VSCode asks "Do you trust the authors of the files?" → Yes
+2. VSCode asks "Allow automatic tasks?" → Allow Once or Always Allow
+3. The terminal panel opens automatically and attaches to the running tmux session
 
-Beim nächsten Öffnen des Projekts geht alles ohne Rückfrage.
+From then on, opening the project is one click — no prompts.
 
-## 9. Auto-Login auf dem Mac mini
+## 9. Auto-login on the host
 
-Damit nach einem Stromausfall alles automatisch hochfährt, muss der Mac mini sich automatisch anmelden:
+So everything comes back automatically after a power outage, the host needs to log in by itself:
 
-Systemeinstellungen → Benutzer & Gruppen → Automatische Anmeldung → dein User.
+System Settings → Users & Groups → Automatic login → your user.
 
-Außerdem unter "Allgemein → Anmeldeobjekte" prüfen, dass nichts bei der Anmeldung blockiert. **FileVault muss deaktiviert sein**, sonst kann der Mac mini nach Stromausfall nicht von alleine starten — beim Boot würde er auf Passwort-Eingabe warten.
+Also, under "General → Login Items", check that nothing blocks login. **FileVault must be disabled** — otherwise the host can't boot unattended (it would wait for a password at boot).
 
-## 10. Neue Projekte hinzufügen
+## 10. Add new projects
 
-Einfach einen neuen Ordner mit Underscore-Prefix anlegen und `setup-stack.sh` nochmal laufen lassen:
+Create a new folder with a leading underscore and re-run `setup-stack.sh`:
 
 ```bash
 mkdir ~/_newproject
 cd ~/claude-stack && ./bin/setup-stack.sh
 ```
 
-Setup ist idempotent, bestehende Sessions werden kurz neu geladen, das neue Projekt taucht überall auf.
+Setup is idempotent. Existing sessions are reloaded briefly, the new project shows up everywhere.
 
-## Fertig
+## Done
 
-Das war's. Ab jetzt: Mac mini läuft 24/7, alle Sessions persistent, vom Phone und Browser steuerbar. Bei Problemen: `docs/TROUBLESHOOTING.md`.
+That's it. The host runs 24/7, every session is persistent, controllable from the phone and the browser. If anything misbehaves: see `docs/TROUBLESHOOTING.md`.

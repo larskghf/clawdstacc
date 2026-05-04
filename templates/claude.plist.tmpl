@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.user.claude.__PROJECT_NAME__</string>
+  <string>com.user.claude-stack.__PROJECT_NAME__</string>
 
   <key>ProgramArguments</key>
   <array>
@@ -11,33 +11,44 @@
     <string>-lc</string>
     <string><![CDATA[
       set -e
-      export PATH="__BREW_PREFIX__/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-
-      # Wenn die Session schon existiert, sind wir fertig
-      if tmux has-session -t __PROJECT_NAME__ 2>/dev/null; then
-        exit 0
-      fi
+      export PATH="__BREW_PREFIX__/bin:__USER_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
       cd "__PROJECT_PATH__"
       mkdir -p .claude
 
-      # Beim ersten Start kann man nicht continuen — Marker-Datei steuert das
+      # Marker file controls whether --continue is used (on the very first
+      # start there is no session to continue from).
+      # -n sets a fresh display name on every start — this also overrides the
+      # name persisted in an old conversation when --continue is used.
+      CLAUDE_BASE="claude --rc --name __PROJECT_NAME__ --remote-control-session-name-prefix __PROJECT_NAME__ __CLAUDE_EXTRA_FLAGS__"
       if [ "__CLAUDE_CONTINUE__" = "true" ] && [ -f .claude/.has-session ]; then
-        CLAUDE_CMD="claude --continue --rc --remote-control-session-name-prefix __PROJECT_NAME__ __CLAUDE_EXTRA_FLAGS__"
+        CLAUDE_CMD="$CLAUDE_BASE --continue"
       else
-        CLAUDE_CMD="claude --rc --remote-control-session-name-prefix __PROJECT_NAME__ __CLAUDE_EXTRA_FLAGS__"
+        CLAUDE_CMD="$CLAUDE_BASE"
       fi
 
-      # Marker setzen, damit der nächste Start --continue nutzt
-      touch .claude/.has-session
+      # Create the session if it does not exist yet. Detached. When Claude
+      # exits, the pane closes, the session ends, the watcher loop below
+      # returns, this script exits non-zero, and KeepAlive respawns it
+      # with a fresh Claude process.
+      if ! tmux has-session -t __PROJECT_NAME__ 2>/dev/null; then
+        tmux new-session -d -s __PROJECT_NAME__ -c "__PROJECT_PATH__" "$CLAUDE_CMD"
+        # Make sure the pane really dies on exit (override any user
+        # `remain-on-exit on` in ~/.tmux.conf).
+        tmux set-option -t __PROJECT_NAME__ remain-on-exit off 2>/dev/null || true
+        # Set the marker after a successful first start.
+        touch .claude/.has-session
+      fi
 
-      # tmux session detached starten. Nach Claude-Exit fällt es in eine
-      # zsh-Login-Shell zurück (statt zu sterben), damit launchd nicht in
-      # eine Restart-Schleife läuft. Login-Shell sorgt dafür, dass ~/.zprofile
-      # und ~/.zshrc geladen werden — Oh My Zsh, Theme, Plugins, Aliases sind
-      # dann alle in der Pane verfügbar.
-      tmux new-session -d -s __PROJECT_NAME__ -c "__PROJECT_PATH__" \
-        "$CLAUDE_CMD; exec /bin/zsh -l -i"
+      # Stay in the foreground and watch the session.
+      # If the session dies, exit with a non-zero status — KeepAlive will
+      # respawn this script and recreate the session.
+      while tmux has-session -t __PROJECT_NAME__ 2>/dev/null; do
+        sleep 10
+      done
+
+      # Session is gone — exit non-zero so KeepAlive will reliably respawn us.
+      exit 1
     ]]></string>
   </array>
 
@@ -45,10 +56,10 @@
   <true/>
 
   <key>KeepAlive</key>
-  <dict>
-    <key>SuccessfulExit</key>
-    <false/>
-  </dict>
+  <true/>
+
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
 
   <key>StandardOutPath</key>
   <string>__LOG_DIR__/claude-__PROJECT_NAME__.log</string>
@@ -59,7 +70,7 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>__BREW_PREFIX__/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <string>__BREW_PREFIX__/bin:__USER_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>HOME</key>
     <string>__USER_HOME__</string>
   </dict>

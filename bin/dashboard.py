@@ -2,10 +2,11 @@
 """
 claude-stack dashboard
 
-Minimaler Webserver (Python stdlib only), zeigt Status aller Sessions,
-erlaubt Restart per Klick. Liest Konfiguration aus stack.conf.
+Minimal web server (Python stdlib only). Shows the status of every project
+session and lets you restart any of them with one click. Reads configuration
+from stack.conf.
 
-Erreichbar auf http://<host>:<DASHBOARD_PORT> (default 8390).
+Available at http://<host>:<DASHBOARD_PORT> (default 8390).
 """
 import glob
 import http.server
@@ -18,7 +19,7 @@ import subprocess
 import time
 from pathlib import Path
 
-# --- Config laden ---
+# --- Load config ---
 
 CONF_PATH = os.environ.get("CLAUDE_STACK_CONF") or str(
     Path(__file__).resolve().parent.parent / "stack.conf"
@@ -27,28 +28,55 @@ PORT = int(os.environ.get("CLAUDE_STACK_PORT", "8390"))
 
 
 def load_conf():
-    """Liest die bash-style stack.conf — sucht nur die Variablen die wir brauchen."""
+    """Read the bash-style stack.conf — only the variables we care about."""
     cfg = {
         "PROJECTS_GLOB": str(Path.home() / "_*"),
         "CODESERVER_BIND": "0.0.0.0:8443",
         "LOG_DIR": str(Path.home() / "Library/Logs/claude-stack"),
+        "EXPLICIT_PROJECTS": [],
     }
     if not os.path.exists(CONF_PATH):
         return cfg
     with open(CONF_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
+        text = f.read()
+
+    # Scalar variables
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^([A-Z_]+)=(.*)$', line)
+        if not m:
+            continue
+        key, val = m.group(1), m.group(2).strip()
+        if val.startswith("("):
+            continue
+        val = val.strip('"').strip("'")
+        val = val.replace("$HOME", str(Path.home()))
+        if key in cfg and not isinstance(cfg[key], list):
+            cfg[key] = val
+
+    # EXPLICIT_PROJECTS=( ... ) — bash array. Prefer the active (un-commented) block.
+    block_re = re.compile(r'^[ \t]*EXPLICIT_PROJECTS=\(\s*\n(.*?)\n[ \t]*\)\s*$',
+                          re.MULTILINE | re.DOTALL)
+    for m in block_re.finditer(text):
+        # Is the block's leading line commented out? Check it.
+        start = m.start()
+        line_start = text.rfind("\n", 0, start) + 1
+        first_line = text[line_start:text.find("\n", start)]
+        if first_line.lstrip().startswith("#"):
+            continue
+        items = []
+        for raw in m.group(1).splitlines():
+            raw = raw.strip()
+            if not raw or raw.startswith("#"):
                 continue
-            m = re.match(r'^([A-Z_]+)=(.*)$', line)
-            if not m:
-                continue
-            key, val = m.group(1), m.group(2).strip()
-            # Quotes entfernen, $HOME expandieren
-            val = val.strip('"').strip("'")
-            val = val.replace("$HOME", str(Path.home()))
-            if key in cfg:
-                cfg[key] = val
+            raw = raw.strip('"').strip("'")
+            raw = raw.replace("$HOME", str(Path.home()))
+            items.append(raw)
+        if items:
+            cfg["EXPLICIT_PROJECTS"] = items
+            break
     return cfg
 
 
@@ -59,7 +87,7 @@ HOME = Path.home()
 # --- Utilities ---
 
 def sh(cmd, default=""):
-    """Shell-Kommando ausführen, Output zurück. Bei Fehler default."""
+    """Run a shell command and return its stdout, or `default` on failure."""
     try:
         return subprocess.check_output(
             cmd, shell=True, text=True, stderr=subprocess.DEVNULL, timeout=5
@@ -69,18 +97,21 @@ def sh(cmd, default=""):
 
 
 def list_projects():
-    """Liefert sortierte Liste von Path-Objekten."""
-    paths = glob.glob(CFG["PROJECTS_GLOB"])
+    """Sorted list of Path objects — EXPLICIT_PROJECTS takes precedence over the glob."""
+    if CFG.get("EXPLICIT_PROJECTS"):
+        paths = CFG["EXPLICIT_PROJECTS"]
+    else:
+        paths = glob.glob(CFG["PROJECTS_GLOB"])
     return sorted([Path(p) for p in paths if os.path.isdir(p)])
 
 
 def project_name(path):
-    """Verzeichnisname ohne Underscore-Prefix."""
+    """Directory name without the leading underscore."""
     return path.name.lstrip("_")
 
 
 def tmux_session_info(name):
-    """Status einer tmux-Session."""
+    """Status of a tmux session."""
     out = sh(f"tmux display-message -p -t {shlex.quote(name)} "
              f"'#{{session_activity}}|#{{pane_pid}}'")
     if not out or "|" not in out:
@@ -94,7 +125,7 @@ def tmux_session_info(name):
 
 
 def claude_running_in_pane(pane_pid):
-    """Prüft ob in der tmux-Pane gerade ein claude-ähnlicher Prozess läuft."""
+    """Is a claude-like process currently running inside the given tmux pane?"""
     if not pane_pid:
         return False
     children = sh(f"pgrep -P {shlex.quote(pane_pid)}")
@@ -106,7 +137,7 @@ def claude_running_in_pane(pane_pid):
 
 
 def latest_session(project_path):
-    """Findet die neueste JSONL-Session des Projekts."""
+    """Find the most recent JSONL session file for this project."""
     sanitized = str(project_path).replace("/", "-").lstrip("-")
     sessions_dir = HOME / ".claude" / "projects" / f"-{sanitized}"
     if not sessions_dir.exists():
@@ -123,7 +154,7 @@ def latest_session(project_path):
 
 
 def agent_loaded(label):
-    """Ist ein launchd-Agent geladen?"""
+    """Is a launchd agent currently loaded?"""
     out = sh(f"launchctl list | grep -E '\\s{re.escape(label)}$'")
     return bool(out)
 
@@ -140,26 +171,26 @@ def collect_status():
             "tmux_alive": tmux["alive"],
             "tmux_idle": tmux.get("idle_seconds"),
             "claude_alive": claude_alive,
-            "agent_loaded": agent_loaded(f"com.user.claude.{name}"),
+            "agent_loaded": agent_loaded(f"com.user.claude-stack.{name}"),
             "session": latest_session(path),
         })
     return {
         "projects": rows,
-        "code_server_loaded": agent_loaded("com.user.codeserver"),
+        "code_server_loaded": agent_loaded("com.user.claude-stack.codeserver"),
         "code_server_bind": CFG["CODESERVER_BIND"],
         "ts": int(time.time()),
     }
 
 
 def restart_project(name):
-    """Restart der tmux+claude-Session für ein Projekt."""
-    # Pfad-Validierung — name darf nur [a-zA-Z0-9_-] sein
+    """Restart the tmux+claude session for a project."""
+    # Validate the name — only [a-zA-Z0-9_-] is allowed.
     if not re.match(r'^[a-zA-Z0-9_-]+$', name):
-        return False, "Ungültiger Projektname"
-    label = f"com.user.claude.{name}"
-    # tmux killen, damit der nächste Start frisch ist
+        return False, "Invalid project name"
+    label = f"com.user.claude-stack.{name}"
+    # Kill the tmux session so the next start is fresh.
     sh(f"tmux kill-session -t {shlex.quote(name)} 2>/dev/null", default="")
-    # Agent neu starten
+    # Kickstart the agent.
     uid = os.getuid()
     rc = subprocess.run(
         ["launchctl", "kickstart", "-k", f"gui/{uid}/{label}"],
@@ -245,14 +276,14 @@ function toast(msg, isErr) {
   setTimeout(() => t.className = "toast", 2500);
 }
 async function restart(name, btn) {
-  if (!confirm(`Session "${name}" neu starten?`)) return;
+  if (!confirm(`Restart session "${name}"?`)) return;
   btn.disabled = true; btn.textContent = "restarting…";
   try {
     const r = await fetch("/api/restart/" + encodeURIComponent(name), {method: "POST"});
     const d = await r.json();
     if (d.ok) { toast("restart ok: " + name); refresh(); }
-    else      { toast("FEHLER: " + d.error, true); }
-  } catch (e) { toast("FEHLER: " + e, true); }
+    else      { toast("error: " + d.error, true); }
+  } catch (e) { toast("error: " + e, true); }
   finally { btn.disabled = false; btn.textContent = "restart"; }
 }
 async function refresh() {
@@ -310,7 +341,7 @@ refresh(); setInterval(refresh, 5000);
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args, **kwargs):
-        pass  # leise
+        pass  # quiet
 
     def _json(self, obj, code=200):
         body = json.dumps(obj).encode()

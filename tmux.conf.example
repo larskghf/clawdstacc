@@ -1,30 +1,29 @@
-# Optional: ~/.tmux.conf erweitern (oder anlegen)
+# Optional ~/.tmux.conf additions (or use as-is if you have none).
 #
-# Diese Settings sorgen dafür, dass NEUE tmux-Windows und -Panes (also wenn du
-# innerhalb einer Session per Ctrl+b c oder Ctrl+b " neue aufmachst) ebenfalls
-# eine Login-Shell starten — damit Oh My Zsh, dein Theme, Aliases etc. auch
-# dort verfügbar sind.
+# These settings make NEW tmux windows and panes — the ones you create with
+# Ctrl+b c or Ctrl+b " inside a running session — start as login shells too,
+# so Oh My Zsh, your theme, aliases etc. are also available there.
 #
-# Inhalte dieser Datei nach ~/.tmux.conf kopieren (anhängen falls schon da)
-# und dann `tmux kill-server && launchctl kickstart -k gui/$(id -u)/com.user.claude.<name>`
-# damit alle Sessions mit der neuen Config neu starten.
+# Copy this file to ~/.tmux.conf (or append it to an existing one), then run
+#   tmux kill-server && launchctl kickstart -k gui/$(id -u)/com.user.claude-stack.<name>
+# to restart sessions with the new config.
 
-# zsh als Default-Shell für neue Panes/Windows, als Login-Shell
+# zsh as the default shell for new panes/windows, started as a login shell.
 set -g default-command "/bin/zsh -l"
 set -g default-shell "/bin/zsh"
 
-# Ein paar Quality-of-Life-Settings (optional, nimm raus was du nicht magst)
+# Quality-of-life — drop anything you don't want.
 
-# True-Color-Support (wichtig für viele zsh-Themes mit hübschen Farben)
+# True-color support (matters for many zsh themes).
 set -g default-terminal "screen-256color"
 set -ga terminal-overrides ",*256col*:Tc"
 
-# Maus-Support (Scrollen, Pane-Resize per Drag)
+# Mouse support (scroll, drag-resize panes).
 set -g mouse on
 
-# History buffer größer
+# Larger scrollback buffer.
 set -g history-limit 50000
 
-# Window/Pane Indizes ab 1 statt 0 (näher an der Tastatur)
+# Window/pane indices start at 1 instead of 0 (closer to the keyboard).
 set -g base-index 1
 setw -g pane-base-index 1

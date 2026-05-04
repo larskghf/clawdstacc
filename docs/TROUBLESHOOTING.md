@@ -1,161 +1,165 @@
 # Troubleshooting
 
-## "claude: command not found" beim Setup
+## "claude: command not found" during setup
 
-`setup-stack.sh` prüft ob `claude` im PATH ist. Falls die Native-Installation den Pfad nicht in deine Shell-Config geschrieben hat, manuell hinzufügen:
+`setup-stack.sh` checks that `claude` is on your PATH. If the native installer didn't add the path to your shell config, add it manually:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-Oder den vollständigen Pfad rausfinden mit `which claude` und in `stack.conf` als zusätzlichen PATH-Eintrag konfigurieren.
+The plist itself adds `~/.local/bin` to its own PATH, so the launchd-managed processes will find claude even without the shell-config change.
 
-## Sessions tauchen nicht in der Claude-App auf
+## Sessions don't appear in the Claude app
 
-Erste Checks:
+First checks:
 
 ```bash
 ./bin/stack-status.sh
 ```
 
-- `tmux ●` rot? → tmux-Session existiert nicht. Logs anschauen: `tail ~/Library/Logs/claude-stack/claude-<name>.err`
-- `agent ●` rot? → launchd hat den Plist nicht geladen. `launchctl list | grep com.user.claude` zeigt was wirklich geladen ist.
-- tmux ✓ aber claude ✗? → tmux läuft, aber Claude ist gecrasht oder noch nicht gestartet. `tmux attach -t <name>` und schauen was dort passiert.
+- `tmux ●` red? → no tmux session. Look at the logs: `tail ~/Library/Logs/claude-stack/claude-<name>.err`
+- `agent ●` red? → launchd hasn't loaded the plist. `launchctl list | grep claude-stack` shows what is actually loaded.
+- tmux ✓ but no claude in the dashboard? → tmux is up but claude crashed or hasn't started. `tmux attach -t <name>` and look at the pane.
 
-In der Claude-App: ist der richtige Account eingeloggt? Remote Control braucht eine Pro- oder Max-Subscription. Wenn du auf einem Free-Account bist, taucht keine Session auf.
+In the Claude app: is the right account logged in? Remote Control needs a Pro or Max subscription. Free accounts don't see sessions.
 
-## Terminal in code-server hat kein Theme / keine Plugins / Befehle fehlen
+## Terminal in code-server has no theme / no plugins / commands missing
 
-Das ist das klassische "launchd-Env vs. interaktive Shell"-Problem. launchd startet code-server mit minimaler Umgebung, das integrierte Terminal erbt die.
+The classic "launchd env vs interactive shell" issue. launchd starts code-server with a minimal environment, and the integrated terminal inherits it.
 
-**Default-Setup sollte das schon lösen:** Das von uns generierte `vscode-settings.json` setzt `zsh-login` (mit `-l -i`) als Default-Profil. Wenn das nicht greift, prüfen:
+**The default setup should already handle this:** the generated `vscode-settings.json` sets `zsh-login` (with `-l -i`) as the default profile. If that's not taking effect, check:
 
-1. **Settings nicht überschrieben?** In code-server `Cmd+,` öffnen, Default Profile (osx) suchen, sollte `zsh-login` sein. Falls nicht: User-Settings haben Workspace-Settings überschrieben — in den User-Settings denselben Wert setzen.
+1. **Settings overridden?** In code-server, open `Cmd+,` and search for the default terminal profile (osx). It should be `zsh-login`. If not, the user-level settings override the workspace setting — set the same value at user level.
 
-2. **`.zshrc` lädt nicht durch?** In einem Terminal in code-server testen:
+2. **`.zshrc` not loading?** In a code-server terminal:
    ```bash
-   echo $0           # sollte "-zsh" sein (mit Bindestrich = Login-Shell)
-   echo $ZSH         # sollte oh-my-zsh-Pfad sein
-   echo $ZSH_THEME   # dein Theme
+   echo $0           # should be "-zsh" (the leading dash means login shell)
+   echo $ZSH         # should show your oh-my-zsh path
+   echo $ZSH_THEME   # your theme
    ```
-   Wenn `$0` ohne Bindestrich → keine Login-Shell. Profile-Args prüfen, `-l` muss drin sein.
+   If `$0` has no leading dash → not a login shell. Check the profile args; `-l` must be in there.
 
-3. **`.zshrc` hat einen Fehler?** Wenn der Output verdächtig leer ist, manuell testen:
+3. **Error in `.zshrc`?** Test manually:
    ```bash
    /bin/zsh -l -i -c 'echo OK'
    ```
-   Bei Fehlern siehst du sie hier.
+   Errors will show up here.
 
-4. **Brew-Pfade fehlen?** Apple Silicon hat einen anderen Default-PATH. Dieser Block sollte in `~/.zprofile` oder `~/.zshrc` stehen:
+4. **Brew paths missing?** Apple Silicon has a different default PATH. Make sure this line is in `~/.zprofile` or `~/.zshrc`:
    ```bash
    eval "$(/opt/homebrew/bin/brew shellenv)"
    ```
 
-## Terminal in tmux-Session hat kein Theme / keine Plugins
+## Terminal in tmux session has no theme / no plugins
 
-Selbe Ursache wie oben. Die Plist startet nach Claude-Exit `zsh -l -i`, das sollte funktionieren. Falls nicht:
-
-```bash
-tmux attach -t <projekt>
-echo $0                    # in der Pane prüfen
-```
-
-Falls die Pane gerade in Claude steckt, mit Ctrl+b c ein neues Window aufmachen — das nutzt aber die `default-command` aus `~/.tmux.conf`. Wenn du `tmux.conf.example` noch nicht übernommen hast, kommt da die System-Default-Shell ohne Login-Flag.
+The pane is currently running Claude — to get to a shell with your full env, open a new window with Ctrl+b c. That uses `default-command` from `~/.tmux.conf`. If you didn't drop in `tmux.conf.example` yet, the system-default shell is used (no login flag), so no theme/plugins.
 
 Fix:
 
 ```bash
 cp ~/claude-stack/tmux.conf.example ~/.tmux.conf
-tmux kill-server   # Sessions starten via launchd neu, mit der neuen Config
+tmux kill-server   # sessions get respawned by launchd with the new config
 ```
 
-## "Unable to connect to claude.ai" oder Network-Timeout
+Note: when Claude exits the pane closes and the session ends — by design, so launchd respawns a fresh Claude instance immediately. There is no "shell after Claude" fallback in the tmux pane anymore.
 
-Claude Code Remote Control benötigt durchgehend Internet. Wenn der Mac mini ~10 Min keine Verbindung hat, beendet sich der Prozess. launchd startet ihn automatisch neu, aber der `--continue`-Flag sorgt dafür dass die Conversation weiterläuft. Wenn das oft passiert: check WLAN-Stabilität oder verkabel den Mac mini.
+## "Unable to connect to claude.ai" or network timeouts
 
-## VSCode öffnet kein Terminal beim Folder-Open
+Claude Code Remote Control needs internet continuously. If the host loses connectivity for ~10 minutes the process exits. launchd respawns it automatically, and `--continue` keeps the conversation going. If it happens often: check WiFi stability, or wire the host.
 
-Drei mögliche Ursachen:
+## VSCode doesn't open a terminal on folder open
 
-1. **Auto-Tasks nicht erlaubt:** in code-server unter Settings (Cmd+,) suchen nach `task.allowAutomaticTasks` und auf `on` setzen. Sollte unsere `settings.json` schon erledigen, aber kann von User-Settings überschrieben werden.
+Three likely causes:
 
-2. **`runOn: folderOpen` feuert nicht:** das passiert bei VSCode manchmal nach Updates. Workaround: einmal `Tasks: Run Task → Attach Claude (tmux)` aus der Command-Palette ausführen.
+1. **Auto-tasks disabled.** Open Settings (`Cmd+,`) and search for `task.allowAutomaticTasks`; set to `on`. Our `settings.json` already sets this, but user-level settings can override it.
 
-3. **tmux-Session existiert nicht:** der Task macht `tmux attach || tmux new`, also sollte das selbst-heilend sein. Falls nicht: `./bin/stack-status.sh` zeigt was los ist.
+2. **Workspace not trusted.** code-server requires the workspace to be trusted before auto-tasks run. The first time you open a folder, click "Trust" on the prompt.
 
-## "claude --continue" findet keine Session
+3. **`runOn: folderOpen` not firing.** Sometimes broken after VSCode/code-server updates. Workaround: run `Tasks: Run Task → Attach Claude (tmux)` from the command palette manually.
 
-Beim ersten Start gibt's keine Session zum Continuen. Der Setup nutzt eine Marker-Datei (`<projekt>/.claude/.has-session`), die beim ersten erfolgreichen Start gesetzt wird.
+The task itself does `tmux attach || tmux new`, so even if attaching fails it falls back to creating a session.
 
-Falls die mal außer Sync ist (z.B. weil du `~/.claude/projects/` manuell aufgeräumt hast):
+## `claude --continue` finds no session
+
+On the first start there is no session to continue. Setup uses a marker file (`<project>/.claude/.has-session`) which is written after the first successful start.
+
+If it ever drifts out of sync (e.g. you cleaned up `~/.claude/projects/` manually):
 
 ```bash
-rm ~/_projektname/.claude/.has-session
-launchctl kickstart -k "gui/$(id -u)/com.user.claude.projektname"
+rm ~/_<project>/.claude/.has-session
+launchctl kickstart -k "gui/$(id -u)/com.user.claude-stack.<project>"
 ```
 
-## launchd respawnt den Prozess in Endlosschleife
+## Panel position in code-server doesn't change after editing settings
+
+`workbench.panel.defaultLocation` is the **default for new workspaces**. Once VSCode has remembered a position for an existing workspace, the default is ignored. Two ways to deal with it:
+
+1. **Move it manually** (one-time): right-click the panel title bar → "Move Panel Right".
+2. **Reset workspace state**: close the workspace, then delete the matching directory in `~/.local/share/code-server/User/workspaceStorage/`. You lose the persisted UI state (tab layout, search history) but no files or settings.
+
+## launchd respawns the process in a tight loop
 
 Logs:
 
 ```bash
-log show --predicate 'subsystem == "com.apple.xpc.launchd"' --last 10m | grep com.user
+log show --predicate 'subsystem == "com.apple.xpc.launchd"' --last 10m | grep claude-stack
 ```
 
-Häufigste Ursache: `KeepAlive` ist zu aggressiv. In den Plists nutzen wir `SuccessfulExit: false` für Claude — das heißt: nur respawnen wenn der Prozess mit Fehlercode endet. Bei sauberem Exit (z.B. du killst die Session manuell) lässt launchd ihn in Ruhe.
+Most common cause: a config error in the plist or a missing binary on PATH. Check `~/Library/Logs/claude-stack/claude-<name>.err`. The plist sets `ThrottleInterval: 10`, so the worst case is one respawn per 10 seconds.
 
-Wenn du eine Session bewusst stoppen willst:
+If you want to stop a session deliberately:
 
 ```bash
-launchctl bootout "gui/$(id -u)/com.user.claude.projektname"
-tmux kill-session -t projektname
+launchctl bootout "gui/$(id -u)/com.user.claude-stack.<project>"
+tmux kill-session -t <project>
 ```
 
-Wieder anschalten:
+To bring it back:
 
 ```bash
-launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.user.claude.projektname.plist
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.user.claude-stack.<project>.plist
 ```
 
-## Dashboard zeigt "agent: no agent" obwohl `launchctl list` ihn zeigt
+## Dashboard says "agent: no agent" while `launchctl list` shows it
 
-Das Dashboard nutzt einen Regex-Match auf `launchctl list`. Bei sehr alten macOS-Versionen kann das Format leicht anders sein. Workaround: in `bin/dashboard.py` die Funktion `agent_loaded` anpassen oder die Detection ignorieren — wenn `tmux ●` und `claude ●` grün sind, ist alles gut, der Agent-Check ist sekundär.
+The dashboard parses `launchctl list` with a regex. On very old macOS the format may differ slightly. If `tmux ●` and `claude ●` are green, you're fine — the agent badge is secondary. If you want to fix it, adjust `agent_loaded()` in `bin/dashboard.py`.
 
-## Code-Server "Connection lost" nach Idle
+## code-server "Connection lost" after idle
 
-Standardmäßig hält code-server WebSocket-Verbindungen offen. Wenn du über einen Reverse-Proxy gehst, kann der nach längerer Idle-Zeit die Verbindung droppen. Browser-Tab schließen und neu öffnen — die Backend-Session läuft weiter, du landest wieder im selben State.
+By default code-server holds WebSocket connections open. If you're going through a reverse proxy, it may drop the connection after a long idle period. Just close the browser tab and reopen — the backend session keeps running and you land in the same state.
 
-## Code-Server Browser-Tab zu, Session weg?
+## Closed the code-server tab — is my session gone?
 
-Nein. Wenn du im integrierten Terminal `tmux attach` gemacht hast und das Browser-Tab schließt, läuft die tmux-Session unbehindert weiter. Beim nächsten Browser-Öffnen feuert `runOn: folderOpen` und attached wieder. Falls aus irgendwelchen Gründen das Auto-Attach fehlschlägt: einfach im Terminal `tmux attach -t <projektname>` manuell ausführen.
+No. If you ran `tmux attach` in the integrated terminal and close the browser tab, the tmux session continues to run. Next time you open the browser, `runOn: folderOpen` re-attaches automatically. If auto-attach fails for some reason, run `tmux attach -t <project>` manually in any terminal.
 
 ## Permissions / "Operation not permitted"
 
-macOS verlangt für viele Operationen explizite Berechtigungen. Wenn du in den Logs Permission-Fehler siehst (z.B. claude kann keine Files lesen):
+macOS requires explicit permission for many operations. If you see permission errors in the logs (e.g. claude can't read files):
 
-Systemeinstellungen → Privatsphäre & Sicherheit → "Vollständiger Festplattenzugriff" → den Terminal-Emulator hinzufügen, in dem du das Setup ausgeführt hast (Terminal.app, iTerm2, etc.). Reboot.
+System Settings → Privacy & Security → "Full Disk Access" → add the terminal you ran setup from (Terminal.app, iTerm2, etc.). Reboot.
 
-Bei manchen Settings hilft auch, `bash` selbst dort hinzuzufügen.
+In some cases adding `bash` itself to the same list helps too.
 
-## Stack komplett neu aufsetzen
+## Reset the stack from scratch
 
-Wenn du das Gefühl hast, die Konfiguration ist durcheinander:
+If the configuration feels tangled:
 
 ```bash
-./bin/teardown-stack.sh    # entfernt alle Plists, beendet Prozesse
-./bin/setup-stack.sh       # erzeugt alles frisch
+./bin/teardown-stack.sh    # remove plists and stop processes
+./bin/setup-stack.sh       # regenerate everything
 ```
 
-Das ist sicher — deine `~/.claude/projects/`-Conversations bleiben erhalten, also keine Datenverluste.
+Safe — your `~/.claude/projects/` conversation history is untouched, no data loss.
 
-## Alle Logs auf einmal anschauen
+## Tail every log at once
 
 ```bash
 tail -f ~/Library/Logs/claude-stack/*.log ~/Library/Logs/claude-stack/*.err
 ```
 
-Oder mit `multitail` für nebeneinander:
+Or with `multitail` for a side-by-side view:
 
 ```bash
 brew install multitail

@@ -1,50 +1,49 @@
-# claude-stack Konfiguration
+# claude-stack configuration
 #
-# Diese Datei nach `stack.conf` kopieren und anpassen.
-# `stack.conf` ist gitignored — Pfade und Passwörter bleiben lokal.
+# Copy this file to `stack.conf` and edit it.
+# `stack.conf` is gitignored — paths and passwords stay local.
 
-# === Generelle Settings ===
+# === General settings ===
 
-# Wo liegen deine Projektordner? Globbing wird unterstützt.
-# Default: alle Ordner mit Underscore-Prefix im Home-Verzeichnis.
+# Where do your project folders live? Globbing is supported.
+# Default: every folder in $HOME with a leading underscore.
 PROJECTS_GLOB="$HOME/_*"
 
-# Code-Server Bind-Adresse und Port. 0.0.0.0 macht ihn auf allen Interfaces
-# erreichbar — der Mac mini wird dann von jedem Gerät im Heimnetz (oder via
-# VPN) unter http://<mac-mini-ip>:8443 ansprechbar.
+# code-server bind address and port. 0.0.0.0 makes it reachable on every
+# interface — the host is then available from any device on your home network
+# (or via VPN) at http://<host>:8443.
 CODESERVER_BIND="0.0.0.0:8443"
 
-# Code-Server Passwort (für Browser-Login).
-# UNBEDINGT ÄNDERN. Generiere ein zufälliges, z.B. mit:
+# code-server password (used for the browser login).
+# CHANGE THIS. Generate something random, e.g.:
 #   openssl rand -base64 24
 CODESERVER_PASSWORD="CHANGE_ME"
 
-# Dashboard-Port
+# Dashboard port
 DASHBOARD_PORT="8390"
 
-# Logs landen hier (wird automatisch angelegt)
+# Logs land here (created automatically).
 LOG_DIR="$HOME/Library/Logs/claude-stack"
 
-# === Claude-spezifisch ===
+# === Claude-specific ===
 
-# Soll `claude --continue` beim Auto-Start verwendet werden?
-# true  = nahtlos weitermachen wo du aufgehört hast (empfohlen)
-# false = jedes Mal frische Session
+# Use `claude --continue` on auto-start?
+# true  = pick up where you left off (recommended)
+# false = always start a fresh session
 CLAUDE_CONTINUE="true"
 
-# Zusätzliche Flags für Claude. Nützlich z.B. für --dangerously-skip-permissions
-# wenn du Auto-Approve willst (Vorsicht — kann auf prod-Systemen gefährlich sein!).
+# Extra flags passed to claude. Useful e.g. for --dangerously-skip-permissions
+# if you want auto-approve (be careful — risky on production systems).
 # CLAUDE_EXTRA_FLAGS="--dangerously-skip-permissions"
 CLAUDE_EXTRA_FLAGS=""
 
-# === Pfade — anpassen falls dein Brew nicht in /opt/homebrew/bin liegt ===
+# === Paths — adjust if Homebrew is not in /opt/homebrew ===
 # (Apple Silicon: /opt/homebrew, Intel: /usr/local)
 BREW_PREFIX="/opt/homebrew"
 
-# === Optional: explizite Projektliste ===
-# Wenn du nicht alle Ordner aus PROJECTS_GLOB nutzen willst, kannst du
-# hier eine explizite Liste setzen (überschreibt PROJECTS_GLOB).
-# Format: ein Pfad pro Zeile in der EXPLICIT_PROJECTS-Variable.
+# === Optional: explicit project list ===
+# Overrides PROJECTS_GLOB. One path per line.
+# Comment this out to fall back to the glob above.
 #
 # EXPLICIT_PROJECTS=(
 #   "$HOME/_project1"
