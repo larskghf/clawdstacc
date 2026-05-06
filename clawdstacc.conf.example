@@ -1,7 +1,7 @@
-# claude-stack configuration
+# clawdstacc configuration
 #
-# Copy this file to `stack.conf` and edit it.
-# `stack.conf` is gitignored — paths and passwords stay local.
+# Copy this file to `clawdstacc.conf` and edit it.
+# `clawdstacc.conf` is gitignored — paths and passwords stay local.
 
 # === General settings ===
 
@@ -14,16 +14,27 @@ PROJECTS_GLOB="$HOME/_*"
 # (or via VPN) at http://<host>:8443.
 CODESERVER_BIND="0.0.0.0:8443"
 
-# code-server password (used for the browser login).
-# CHANGE THIS. Generate something random, e.g.:
-#   openssl rand -base64 24
+# Public URL for code-server when accessed through a reverse proxy / tunnel
+# (Cloudflare Tunnel, Tailscale Funnel, etc.). When set AND the dashboard is
+# being accessed via HTTPS, the "code-server ↗" links redirect here instead of
+# to <host>:<port>. Leave empty for LAN-only setups.
+# CODESERVER_PUBLIC_URL="https://code.kghf.io"
+
+# code-server auth mode: "password" or "none".
+# Set to "none" if you protect code-server with a reverse proxy / Cloudflare
+# Access in front (avoids the second login prompt). Set to "password" for
+# LAN-only setups without an upstream auth layer.
+CODESERVER_AUTH="password"
+
+# code-server password — only used when CODESERVER_AUTH=password.
+# Generate: openssl rand -base64 24
 CODESERVER_PASSWORD="CHANGE_ME"
 
 # Dashboard port
 DASHBOARD_PORT="8390"
 
 # Logs land here (created automatically).
-LOG_DIR="$HOME/Library/Logs/claude-stack"
+LOG_DIR="$HOME/Library/Logs/clawdstacc"
 
 # === Claude-specific ===
 

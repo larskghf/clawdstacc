@@ -1,0 +1,582 @@
+{{define "index"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e0e1c">
+<meta name="description" content="clawdstacc — persistent, remote-controllable Claude Code sessions, all in one place.">
+<meta property="og:title" content="clawdstacc">
+<meta property="og:description" content="Live status of every Claude Code session running on the host.">
+<meta property="og:type" content="website">
+<title>clawdstacc</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="preconnect" href="https://rsms.me/">
+<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+<style>
+  :root {
+    --bg: #06060c;
+    --bg-soft: #0c0c18;
+    --card: rgba(255, 255, 255, 0.03);
+    --card-hover: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.12);
+
+    --text: #f4f4f8;
+    --text-soft: #c8c8d4;
+    --muted: #7a7a92;
+    --muted-strong: #9a9ab2;
+
+    --acc-cyan: #06b6d4;
+    --acc-violet: #a855f7;
+    --acc-pink: #ec4899;
+    --acc-grad: linear-gradient(135deg, #06b6d4 0%, #a855f7 50%, #ec4899 100%);
+
+    --ok: #22c55e;
+    --ok-soft: rgba(34, 197, 94, 0.12);
+    --warn: #f59e0b;
+    --warn-soft: rgba(245, 158, 11, 0.12);
+    --err: #ef4444;
+    --err-soft: rgba(239, 68, 68, 0.12);
+    --info: #38bdf8;
+    --info-soft: rgba(56, 189, 248, 0.12);
+
+    --shadow-glow: 0 0 0 1px rgba(168, 85, 247, 0.15), 0 8px 32px rgba(168, 85, 247, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(168, 85, 247, 0.12), transparent 35%),
+      radial-gradient(circle at 88% 90%, rgba(6, 182, 212, 0.10), transparent 40%);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: 1.5rem 1.25rem 4rem;
+  }
+
+  .wrap { max-width: 1280px; margin: 0 auto; }
+
+  /* === Header === */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .brand {
+    display: flex; align-items: center; gap: .65rem;
+    font-size: 1.55rem; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .brand .icon {
+    width: 32px; height: 32px;
+    filter: drop-shadow(0 4px 14px rgba(168, 85, 247, 0.35));
+  }
+  .brand .logo {
+    background: var(--acc-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-feature-settings: "ss02";
+  }
+  .brand .pill {
+    font-size: .66rem; font-weight: 500; letter-spacing: .04em;
+    padding: 3px 9px; border-radius: 99px;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--muted-strong); text-transform: uppercase;
+    align-self: center;
+  }
+  .live-indicator {
+    display: flex; align-items: center; gap: .55rem;
+    font-size: .78rem; color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  /* === Paste-target picker === */
+  .paste-picker {
+    display: flex; align-items: center; gap: .45rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: .35rem .6rem .35rem .85rem;
+    font-size: .76rem;
+    color: var(--muted-strong);
+    transition: border-color .2s ease;
+  }
+  .paste-picker:focus-within { border-color: rgba(34, 197, 94, 0.4); }
+  .paste-picker label {
+    cursor: pointer; user-select: none; line-height: 1;
+  }
+  .paste-picker select {
+    appearance: none; -webkit-appearance: none;
+    font: inherit; color: var(--text);
+    background: transparent; border: 0; padding: 0 .9rem 0 .25rem;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 8px) 50%, calc(100% - 4px) 50%;
+    background-size: 4px 4px;
+    background-repeat: no-repeat;
+  }
+  .paste-picker select:focus { outline: none; }
+  .paste-picker select option { background: var(--bg-soft); color: var(--text); }
+  .paste-picker .hint { color: var(--muted); font-size: .68rem; }
+  .card.paste-target {
+    border-color: rgba(34, 197, 94, 0.45);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18), 0 8px 24px rgba(34, 197, 94, 0.08);
+    background: rgba(34, 197, 94, 0.025);
+  }
+  .card.paste-target::after {
+    content: "PASTE TARGET";
+    position: absolute; top: -1px; right: 16px;
+    background: linear-gradient(135deg, #22c55e, #06b6d4);
+    color: #fff;
+    font-size: .58rem; font-weight: 700;
+    letter-spacing: .08em;
+    padding: 3px 9px;
+    border-radius: 0 0 8px 8px;
+    pointer-events: none;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #444; transition: all .25s ease;
+  }
+  .live-dot.on {
+    background: var(--ok);
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18); }
+    50%      { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0.04); }
+  }
+
+  /* === Summary stats === */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: .75rem;
+    margin-bottom: 1.75rem;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: .85rem 1rem;
+    display: flex; flex-direction: column; gap: .15rem;
+    transition: all .2s ease;
+  }
+  .stat:hover { background: var(--card-hover); border-color: var(--border-strong); }
+  .stat-num { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+  .stat-label {
+    font-size: .7rem; font-weight: 500; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+  }
+  .stat.accent .stat-num {
+    background: var(--acc-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat.ok-color .stat-num { color: var(--ok); }
+  .stat.warn-color .stat-num { color: var(--warn); }
+  .stat.info-color .stat-num { color: var(--info); }
+
+  /* === Cards grid === */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: .85rem;
+  }
+
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.1rem 1.15rem 1rem;
+    overflow: hidden;
+    transition: all .2s ease;
+    isolation: isolate;
+  }
+  .card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent 40%);
+    pointer-events: none; z-index: -1;
+  }
+  .card:hover {
+    background: var(--card-hover);
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
+  }
+  .card.running {
+    border-color: rgba(168, 85, 247, 0.3);
+    box-shadow: var(--shadow-glow);
+  }
+  .card.dead { opacity: .55; }
+  .card.setup {
+    border-style: dashed;
+    border-color: rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.04);
+  }
+
+  .card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: .75rem; margin-bottom: .55rem;
+  }
+  .card-name {
+    font-size: 1.1rem; font-weight: 650; letter-spacing: -0.015em;
+    word-break: break-all;
+  }
+  .card-name .name-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    margin-right: .45rem; vertical-align: middle;
+    background: var(--muted);
+  }
+  .card.ok    .name-dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .card.warn  .name-dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  .card.dead  .name-dot { background: var(--err); }
+  .card.setup .name-dot { background: var(--info); }
+  .card.running .name-dot {
+    background: var(--acc-violet);
+    box-shadow: 0 0 10px var(--acc-violet);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { transform: scale(1);   opacity: 1;   }
+    50%      { transform: scale(1.4); opacity: .65; }
+  }
+
+  .badges { display: flex; gap: .3rem; flex-wrap: wrap; justify-content: flex-end; }
+  .b {
+    display: inline-flex; align-items: center; gap: .25rem;
+    font-size: .66rem; font-weight: 500;
+    padding: 2px 7px; border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    color: var(--muted-strong);
+    letter-spacing: .03em;
+  }
+  .b.ok   { background: var(--ok-soft); color: #86efac; border-color: rgba(34,197,94,0.2); }
+  .b.warn { background: var(--warn-soft); color: #fcd34d; border-color: rgba(245,158,11,0.2); }
+  .b.err  { background: var(--err-soft); color: #fca5a5; border-color: rgba(239,68,68,0.2); }
+  .b.info { background: var(--info-soft); color: #7dd3fc; border-color: rgba(56,189,248,0.2); }
+  .b.tool {
+    background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.15));
+    color: #f0abfc;
+    border-color: rgba(168,85,247,0.3);
+    font-weight: 600;
+  }
+  .b.tool::before {
+    content: ""; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--acc-violet); box-shadow: 0 0 6px var(--acc-violet);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+
+  .meta-line {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: .4rem; gap: .5rem;
+  }
+  .meta {
+    font-size: .73rem; color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .sess-line {
+    margin: .55rem 0 .65rem;
+    color: var(--text-soft);
+    background: rgba(255,255,255,0.025);
+    border-left: 2px solid var(--border-strong);
+    padding: .45rem .65rem;
+    border-radius: 0 8px 8px 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .73rem;
+  }
+  .sess-line.empty { color: var(--muted); font-style: italic; }
+  .sess-line.tool-running {
+    border-left-color: var(--acc-violet);
+    background: linear-gradient(90deg, rgba(168,85,247,0.10), rgba(168,85,247,0.02) 60%);
+    color: #f0abfc;
+  }
+  .tool-prefix { color: var(--acc-violet); font-weight: 600; margin-right: .25rem; }
+
+  .card-stats {
+    display: flex; align-items: center; gap: .9rem; flex-wrap: wrap;
+    margin: 0 0 .85rem;
+    font-size: .72rem; color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .card-stats strong { color: var(--text-soft); font-weight: 600; }
+  .card-stats .cost strong {
+    background: var(--acc-grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .b.model {
+    background: rgba(56, 189, 248, 0.10);
+    border-color: rgba(56, 189, 248, 0.25);
+    color: #7dd3fc;
+    font-weight: 600;
+  }
+
+  .path-meta {
+    max-width: 60%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    direction: rtl; text-align: left; /* keep tail visible when truncated */
+  }
+
+  .actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+  .btn {
+    font: inherit;
+    font-size: .76rem; font-weight: 500;
+    color: var(--text-soft);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    padding: .42rem .75rem; border-radius: 8px;
+    cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: .35rem;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary {
+    background: var(--acc-grad);
+    color: white; border: 0;
+    font-weight: 600;
+  }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.danger { color: #fca5a5; border-color: rgba(239,68,68,0.2); }
+  .btn.danger:hover { background: var(--err-soft); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+
+  .footer {
+    margin-top: 2.5rem; text-align: center;
+    color: var(--muted); font-size: .72rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .footer a { color: var(--muted-strong); }
+  .footer a:hover { color: var(--text); }
+
+  .toast {
+    position: fixed; bottom: 1.25rem; left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: rgba(15, 15, 25, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: .65rem 1.1rem; border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    font-size: .82rem;
+    opacity: 0; pointer-events: none;
+    transition: all .25s ease;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.ok  { border-left: 3px solid var(--ok); padding-left: 1rem; }
+  .toast.err { border-left: 3px solid var(--err); padding-left: 1rem; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem .9rem 3rem; }
+    .brand { font-size: 1.3rem; }
+    .stat-num { font-size: 1.4rem; }
+    .cards { grid-template-columns: 1fr; }
+  }
+</style>
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/sse.js"></script>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <img class="icon" src="/icon.svg" alt="" width="32" height="32">
+      <span class="logo">clawdstacc</span>
+      <span class="pill">live</span>
+    </div>
+    <div class="paste-picker" title="Cmd+V/Ctrl+V anywhere on the page sends an image to this project">
+      <label for="paste-target">📋 paste to</label>
+      <select id="paste-target">
+        <option value="" disabled selected>—</option>
+      </select>
+    </div>
+    <div class="live-indicator">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="live-text">connecting…</span>
+    </div>
+  </header>
+
+  <div hx-ext="sse" sse-connect="/sse/status">
+    <div class="stats" id="stats" sse-swap="stats" hx-swap="innerHTML">
+      {{template "stats" summary .}}
+    </div>
+    <div class="cards" id="cards" sse-swap="cards" hx-swap="innerHTML">
+      {{template "cards" .}}
+    </div>
+  </div>
+
+  <div class="footer">
+    refresh streams every 2s · <a href="/api/status">/api/status</a>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // Liveness derived from message receipt: any SSE message in the last 8s
+  // means we're live. This is more reliable than HTMX's open/close events
+  // which can fire spuriously around message swaps and reconnects.
+  const liveDot = document.getElementById("live-dot");
+  const liveText = document.getElementById("live-text");
+  let lastMessageAt = 0;
+  function setLive() {
+    liveDot.classList.add("on");
+    liveText.textContent = "live";
+  }
+  function setOffline() {
+    liveDot.classList.remove("on");
+    liveText.textContent = "offline";
+  }
+  document.body.addEventListener("htmx:sseMessage", () => {
+    lastMessageAt = Date.now();
+    setLive();
+  });
+  setInterval(() => {
+    if (lastMessageAt && Date.now() - lastMessageAt > 8000) setOffline();
+  }, 1000);
+
+  function toast(msg, kind) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = "toast show " + (kind || "ok");
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.className = "toast", 2500);
+  }
+
+  document.body.addEventListener("htmx:afterRequest", (ev) => {
+    const path = ev.detail.requestConfig?.path || "";
+    if (path.startsWith("/api/restart/")) {
+      const name = decodeURIComponent(path.split("/").pop());
+      toast(ev.detail.successful ? "restart sent: " + name : "restart failed", ev.detail.successful ? "ok" : "err");
+    }
+    if (path.startsWith("/api/setup/")) {
+      const name = decodeURIComponent(path.split("/").pop());
+      toast(ev.detail.successful ? "set up: " + name : "setup failed", ev.detail.successful ? "ok" : "err");
+    }
+  });
+
+  // === Paste-target picker + page-level image paste ===
+  const STORAGE_KEY = "clawdstacc.pasteTarget";
+  const targetSelect = document.getElementById("paste-target");
+
+  function refreshPasteTargetOptions() {
+    // Build the option list from the live cards in the DOM. Only include
+    // sessions where Claude is actually running (.card.ok / .card.running) —
+    // pasting to a dead session would just fail at the tmux check.
+    const cards = document.querySelectorAll(".card[id^='card-']");
+    const live = [];
+    cards.forEach((c) => {
+      const name = c.id.replace(/^card-/, "");
+      if (c.classList.contains("ok") || c.classList.contains("running")) {
+        live.push(name);
+      }
+    });
+
+    const previous = targetSelect.value || localStorage.getItem(STORAGE_KEY) || "";
+    targetSelect.innerHTML = "";
+    if (live.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = ""; opt.disabled = true; opt.selected = true;
+      opt.textContent = "no live sessions";
+      targetSelect.appendChild(opt);
+      applyTargetVisual();
+      return;
+    }
+    live.forEach((name) => {
+      const opt = document.createElement("option");
+      opt.value = name; opt.textContent = name;
+      targetSelect.appendChild(opt);
+    });
+    if (previous && live.includes(previous)) {
+      targetSelect.value = previous;
+    } else {
+      targetSelect.value = live[0];
+      localStorage.setItem(STORAGE_KEY, live[0]);
+    }
+    applyTargetVisual();
+  }
+
+  function applyTargetVisual() {
+    document.querySelectorAll(".card.paste-target")
+      .forEach((c) => c.classList.remove("paste-target"));
+    const target = targetSelect.value;
+    if (target) {
+      const card = document.getElementById("card-" + target);
+      if (card) card.classList.add("paste-target");
+    }
+  }
+
+  targetSelect.addEventListener("change", () => {
+    if (targetSelect.value) {
+      localStorage.setItem(STORAGE_KEY, targetSelect.value);
+    }
+    applyTargetVisual();
+  });
+
+  // Re-populate / re-apply target visual after every SSE swap.
+  document.body.addEventListener("htmx:afterSwap", refreshPasteTargetOptions);
+  // Initial population (also covers the case where SSE never fires).
+  setTimeout(refreshPasteTargetOptions, 100);
+
+  // Page-level paste handler: image-only, requires a target.
+  window.addEventListener("paste", async (ev) => {
+    const target = targetSelect.value;
+    if (!target) return;
+
+    const items = ev.clipboardData?.items;
+    if (!items) return;
+
+    let blob = null;
+    let ext = "png";
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        blob = item.getAsFile();
+        ext = item.type.split("/")[1] || "png";
+        break;
+      }
+    }
+    if (!blob) return; // No image — let default text paste behaviour proceed.
+    ev.preventDefault();
+
+    const fd = new FormData();
+    fd.append("image", blob, "pasted." + ext);
+
+    try {
+      const r = await fetch("/api/paste/" + encodeURIComponent(target), {
+        method: "POST",
+        body: fd,
+      });
+      const d = await r.json();
+      if (d.ok) {
+        const kb = (d.bytes / 1024).toFixed(1);
+        toast(`📋 → ${target} · ${kb} kB`);
+      } else {
+        toast("paste failed: " + d.error, "err");
+      }
+    } catch (e) {
+      toast("paste failed: " + e, "err");
+    }
+  });
+</script>
+</body>
+</html>{{end}}

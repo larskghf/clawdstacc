@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# setup-stack.sh — claude-stack setup
+# setup.sh — clawdstacc setup
 #
-# Reads stack.conf, scans the project folders, and generates a launchd plist
+# Reads clawdstacc.conf, scans the project folders, and generates a launchd plist
 # and .vscode config per project, plus single plists for code-server and the
 # dashboard. Loads everything into launchd.
 #
@@ -12,7 +12,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TEMPLATES_DIR="$REPO_DIR/templates"
-CONF_FILE="$REPO_DIR/stack.conf"
+CONF_FILE="$REPO_DIR/clawdstacc.conf"
 LAUNCH_AGENTS_DIR="$HOME/Library/LaunchAgents"
 
 # --- Helpers ---
@@ -40,7 +40,7 @@ render_template() {
 
 # --- Load config ---
 
-[ -f "$CONF_FILE" ] || die "stack.conf not found. Copy stack.conf.example to stack.conf and edit it."
+[ -f "$CONF_FILE" ] || die "clawdstacc.conf not found. Copy clawdstacc.conf.example to clawdstacc.conf and edit it."
 
 # shellcheck source=/dev/null
 source "$CONF_FILE"
@@ -48,9 +48,10 @@ source "$CONF_FILE"
 # Defaults if not set in conf
 : "${PROJECTS_GLOB:=$HOME/_*}"
 : "${CODESERVER_BIND:=0.0.0.0:8443}"
+: "${CODESERVER_AUTH:=password}"
 : "${CODESERVER_PASSWORD:=CHANGE_ME}"
 : "${DASHBOARD_PORT:=8390}"
-: "${LOG_DIR:=$HOME/Library/Logs/claude-stack}"
+: "${LOG_DIR:=$HOME/Library/Logs/clawdstacc}"
 : "${CLAUDE_CONTINUE:=true}"
 : "${CLAUDE_EXTRA_FLAGS:=}"
 : "${BREW_PREFIX:=/opt/homebrew}"
@@ -61,7 +62,7 @@ blue "==> Pre-flight checks"
 
 [ "$(uname)" = "Darwin" ] || die "This setup targets macOS. You are on $(uname)."
 
-[ -x "$BREW_PREFIX/bin/brew" ] || die "Homebrew not found at $BREW_PREFIX. Adjust BREW_PREFIX in stack.conf or install brew."
+[ -x "$BREW_PREFIX/bin/brew" ] || die "Homebrew not found at $BREW_PREFIX. Adjust BREW_PREFIX in clawdstacc.conf or install brew."
 
 for cmd in tmux code-server; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -70,22 +71,16 @@ for cmd in tmux code-server; do
   fi
 done
 
-# python3 — the plist needs an absolute path. Try the brew symlink, a
-# brew-versioned binary, then system Python (in that order).
-PYTHON3_BIN=""
-for candidate in \
-    "$BREW_PREFIX/bin/python3" \
-    "$BREW_PREFIX/bin/python3.13" \
-    "$BREW_PREFIX/bin/python3.12" \
-    "$BREW_PREFIX/bin/python3.11" \
-    "/usr/bin/python3"; do
-  if [ -x "$candidate" ]; then
-    PYTHON3_BIN="$candidate"
+# go — needed to build the dashboard binary. Try the brew symlink first, then PATH.
+GO_BIN=""
+for candidate in "$BREW_PREFIX/bin/go" "$(command -v go || true)"; do
+  if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+    GO_BIN="$candidate"
     break
   fi
 done
-if [ -z "$PYTHON3_BIN" ]; then
-  yellow "  missing: python3  (brew install python@3.12)"
+if [ -z "$GO_BIN" ]; then
+  yellow "  missing: go  (brew install go)"
   MISSING=1
 fi
 
@@ -97,10 +92,10 @@ fi
 [ -z "${MISSING:-}" ] || die "Install missing tools and re-run."
 
 if [ "$CODESERVER_PASSWORD" = "CHANGE_ME" ]; then
-  yellow "WARNING: CODESERVER_PASSWORD is still 'CHANGE_ME'. Generate one with 'openssl rand -base64 24' and set it in stack.conf."
+  yellow "WARNING: CODESERVER_PASSWORD is still 'CHANGE_ME'. Generate one with 'openssl rand -base64 24' and set it in clawdstacc.conf."
 fi
 
-green "  ✓ macOS, brew, tmux, code-server, python3 ($PYTHON3_BIN), claude"
+green "  ✓ macOS, brew, tmux, code-server, go ($GO_BIN), claude"
 
 # --- Create directories ---
 
@@ -141,7 +136,7 @@ for project_path in "${PROJECTS[@]}"; do
   GENERATED_PROJECTS+=("$project_name")
 
   # 1) launchd plist for tmux+claude
-  plist_path="$LAUNCH_AGENTS_DIR/com.user.claude-stack.${project_name}.plist"
+  plist_path="$LAUNCH_AGENTS_DIR/com.user.clawdstacc.${project_name}.plist"
   render_template "$TEMPLATES_DIR/claude.plist.tmpl" "$plist_path" \
     "PROJECT_NAME=$project_name" \
     "PROJECT_PATH=$project_path" \
@@ -176,20 +171,27 @@ done
 # --- code-server plist ---
 
 blue "==> Generating code-server plist"
-render_template "$TEMPLATES_DIR/codeserver.plist.tmpl" "$LAUNCH_AGENTS_DIR/com.user.claude-stack.codeserver.plist" \
+render_template "$TEMPLATES_DIR/codeserver.plist.tmpl" "$LAUNCH_AGENTS_DIR/com.user.clawdstacc.codeserver.plist" \
   "BREW_PREFIX=$BREW_PREFIX" \
   "USER_HOME=$HOME" \
   "LOG_DIR=$LOG_DIR" \
   "CODESERVER_BIND=$CODESERVER_BIND" \
+  "CODESERVER_AUTH=$CODESERVER_AUTH" \
   "CODESERVER_PASSWORD=$CODESERVER_PASSWORD"
 green "  ✓ codeserver.plist"
 
 # --- dashboard plist ---
 
+blue "==> Building dashboard (Go)"
+(
+  cd "$REPO_DIR/dashboard"
+  CGO_ENABLED=0 "$GO_BIN" build -trimpath -ldflags="-s -w" -o "$REPO_DIR/bin/dashboard" .
+)
+green "  ✓ bin/dashboard"
+
 blue "==> Generating dashboard plist"
-render_template "$TEMPLATES_DIR/dashboard.plist.tmpl" "$LAUNCH_AGENTS_DIR/com.user.claude-stack.dashboard.plist" \
+render_template "$TEMPLATES_DIR/dashboard.plist.tmpl" "$LAUNCH_AGENTS_DIR/com.user.clawdstacc.dashboard.plist" \
   "BREW_PREFIX=$BREW_PREFIX" \
-  "PYTHON3_BIN=$PYTHON3_BIN" \
   "USER_HOME=$HOME" \
   "LOG_DIR=$LOG_DIR" \
   "REPO_PATH=$REPO_DIR" \
@@ -203,21 +205,17 @@ blue "==> launchd: unload old agents, load new ones"
 # Plists we just generated (the desired state).
 ALL_PLISTS=()
 for project_name in "${GENERATED_PROJECTS[@]}"; do
-  ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.claude-stack.${project_name}.plist")
+  ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.clawdstacc.${project_name}.plist")
 done
-ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.claude-stack.codeserver.plist")
-ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.claude-stack.dashboard.plist")
+ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.clawdstacc.codeserver.plist")
+ALL_PLISTS+=("$LAUNCH_AGENTS_DIR/com.user.clawdstacc.dashboard.plist")
 
-# Clean up orphans — pre-rename labels (com.user.claude.*, com.user.codeserver,
-# com.user.claude-dashboard) and current-naming plists not in the config anymore.
+# Clean up orphans — clawdstacc plists no longer in the config (removed
+# projects). Anything else under our prefix gets removed so the agent set
+# matches the live config exactly.
 shopt -s nullglob
 ORPHANS=()
-for old in "$LAUNCH_AGENTS_DIR"/com.user.claude.*.plist \
-           "$LAUNCH_AGENTS_DIR"/com.user.codeserver.plist \
-           "$LAUNCH_AGENTS_DIR"/com.user.claude-dashboard.plist; do
-  ORPHANS+=("$old")
-done
-for existing in "$LAUNCH_AGENTS_DIR"/com.user.claude-stack.*.plist; do
+for existing in "$LAUNCH_AGENTS_DIR"/com.user.clawdstacc.*.plist; do
   keep=0
   for wanted in "${ALL_PLISTS[@]}"; do
     [ "$existing" = "$wanted" ] && { keep=1; break; }
@@ -264,7 +262,7 @@ green "════════════════════════�
 green "  Setup complete."
 green "═══════════════════════════════════════════════════════════════"
 echo
-echo "Status:        ./bin/stack-status.sh"
+echo "Status:        ./bin/status.sh"
 echo "code-server:   http://<host>:${CODESERVER_BIND##*:}"
 echo "Dashboard:     http://<host>:${DASHBOARD_PORT}"
 echo "Logs:          tail -f ${LOG_DIR}/*.log"

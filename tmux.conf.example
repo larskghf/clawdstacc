@@ -5,7 +5,7 @@
 # so Oh My Zsh, your theme, aliases etc. are also available there.
 #
 # Copy this file to ~/.tmux.conf (or append it to an existing one), then run
-#   tmux kill-server && launchctl kickstart -k gui/$(id -u)/com.user.claude-stack.<name>
+#   tmux kill-server && launchctl kickstart -k gui/$(id -u)/com.user.clawdstacc.<name>
 # to restart sessions with the new config.
 
 # zsh as the default shell for new panes/windows, started as a login shell.

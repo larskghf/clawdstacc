@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# stack-status.sh — quick CLI overview of all stack components.
+# status.sh — quick CLI overview of all stack components.
 
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CONF_FILE="$REPO_DIR/stack.conf"
+CONF_FILE="$REPO_DIR/clawdstacc.conf"
 
 [ -f "$CONF_FILE" ] && source "$CONF_FILE"
 : "${PROJECTS_GLOB:=$HOME/_*}"
-: "${LOG_DIR:=$HOME/Library/Logs/claude-stack}"
+: "${LOG_DIR:=$HOME/Library/Logs/clawdstacc}"
 : "${CODESERVER_BIND:=0.0.0.0:8443}"
 : "${DASHBOARD_PORT:=8390}"
 
@@ -61,14 +61,14 @@ claude_in_session() {
 
 echo
 bold "╔══════════════════════════════════════════════════════════════╗"; echo
-bold "║                  claude-stack status                         ║"; echo
+bold "║                  clawdstacc status                         ║"; echo
 bold "╚══════════════════════════════════════════════════════════════╝"; echo
 echo
 
 # code-server
 printf "%-30s " "code-server"
-if agent_loaded "com.user.claude-stack.codeserver"; then
-  pid="$(agent_pid com.user.claude-stack.codeserver)"
+if agent_loaded "com.user.clawdstacc.codeserver"; then
+  pid="$(agent_pid com.user.clawdstacc.codeserver)"
   if [ -n "$pid" ] && [ "$pid" != "-" ]; then
     green "● running"; printf "  (pid %s, %s)" "$pid" "$CODESERVER_BIND"
   else
@@ -81,8 +81,8 @@ echo
 
 # Dashboard
 printf "%-30s " "dashboard"
-if agent_loaded "com.user.claude-stack.dashboard"; then
-  pid="$(agent_pid com.user.claude-stack.dashboard)"
+if agent_loaded "com.user.clawdstacc.dashboard"; then
+  pid="$(agent_pid com.user.clawdstacc.dashboard)"
   if [ -n "$pid" ] && [ "$pid" != "-" ]; then
     green "● running"; printf "  (pid %s, port %s)" "$pid" "$DASHBOARD_PORT"
   else
@@ -113,7 +113,7 @@ else
     [ -d "$project_path" ] || continue
     name="$(basename "$project_path")"
     name="${name#_}"
-    label="com.user.claude-stack.$name"
+    label="com.user.clawdstacc.$name"
 
     printf "  %-26s " "$name"
 

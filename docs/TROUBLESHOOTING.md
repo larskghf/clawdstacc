@@ -2,7 +2,7 @@
 
 ## "claude: command not found" during setup
 
-`setup-stack.sh` checks that `claude` is on your PATH. If the native installer didn't add the path to your shell config, add it manually:
+`setup.sh` checks that `claude` is on your PATH. If the native installer didn't add the path to your shell config, add it manually:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
@@ -16,11 +16,11 @@ The plist itself adds `~/.local/bin` to its own PATH, so the launchd-managed pro
 First checks:
 
 ```bash
-./bin/stack-status.sh
+./bin/status.sh
 ```
 
-- `tmux ●` red? → no tmux session. Look at the logs: `tail ~/Library/Logs/claude-stack/claude-<name>.err`
-- `agent ●` red? → launchd hasn't loaded the plist. `launchctl list | grep claude-stack` shows what is actually loaded.
+- `tmux ●` red? → no tmux session. Look at the logs: `tail ~/Library/Logs/clawdstacc/claude-<name>.err`
+- `agent ●` red? → launchd hasn't loaded the plist. `launchctl list | grep clawdstacc` shows what is actually loaded.
 - tmux ✓ but no claude in the dashboard? → tmux is up but claude crashed or hasn't started. `tmux attach -t <name>` and look at the pane.
 
 In the Claude app: is the right account logged in? Remote Control needs a Pro or Max subscription. Free accounts don't see sessions.
@@ -59,7 +59,7 @@ The pane is currently running Claude — to get to a shell with your full env, o
 Fix:
 
 ```bash
-cp ~/claude-stack/tmux.conf.example ~/.tmux.conf
+cp ~/clawdstacc/tmux.conf.example ~/.tmux.conf
 tmux kill-server   # sessions get respawned by launchd with the new config
 ```
 
@@ -89,7 +89,7 @@ If it ever drifts out of sync (e.g. you cleaned up `~/.claude/projects/` manuall
 
 ```bash
 rm ~/_<project>/.claude/.has-session
-launchctl kickstart -k "gui/$(id -u)/com.user.claude-stack.<project>"
+launchctl kickstart -k "gui/$(id -u)/com.user.clawdstacc.<project>"
 ```
 
 ## Panel position in code-server doesn't change after editing settings
@@ -104,27 +104,27 @@ launchctl kickstart -k "gui/$(id -u)/com.user.claude-stack.<project>"
 Logs:
 
 ```bash
-log show --predicate 'subsystem == "com.apple.xpc.launchd"' --last 10m | grep claude-stack
+log show --predicate 'subsystem == "com.apple.xpc.launchd"' --last 10m | grep clawdstacc
 ```
 
-Most common cause: a config error in the plist or a missing binary on PATH. Check `~/Library/Logs/claude-stack/claude-<name>.err`. The plist sets `ThrottleInterval: 10`, so the worst case is one respawn per 10 seconds.
+Most common cause: a config error in the plist or a missing binary on PATH. Check `~/Library/Logs/clawdstacc/claude-<name>.err`. The plist sets `ThrottleInterval: 10`, so the worst case is one respawn per 10 seconds.
 
 If you want to stop a session deliberately:
 
 ```bash
-launchctl bootout "gui/$(id -u)/com.user.claude-stack.<project>"
+launchctl bootout "gui/$(id -u)/com.user.clawdstacc.<project>"
 tmux kill-session -t <project>
 ```
 
 To bring it back:
 
 ```bash
-launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.user.claude-stack.<project>.plist
+launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.user.clawdstacc.<project>.plist
 ```
 
 ## Dashboard says "agent: no agent" while `launchctl list` shows it
 
-The dashboard parses `launchctl list` with a regex. On very old macOS the format may differ slightly. If `tmux ●` and `claude ●` are green, you're fine — the agent badge is secondary. If you want to fix it, adjust `agent_loaded()` in `bin/dashboard.py`.
+The dashboard parses `launchctl list` with a regex. On very old macOS the format may differ slightly. If `tmux ●` and `claude ●` are green, you're fine — the agent badge is secondary. If you want to fix it, adjust `agentLoaded()` in `dashboard/status.go`.
 
 ## code-server "Connection lost" after idle
 
@@ -147,8 +147,8 @@ In some cases adding `bash` itself to the same list helps too.
 If the configuration feels tangled:
 
 ```bash
-./bin/teardown-stack.sh    # remove plists and stop processes
-./bin/setup-stack.sh       # regenerate everything
+./bin/teardown.sh    # remove plists and stop processes
+./bin/setup.sh       # regenerate everything
 ```
 
 Safe — your `~/.claude/projects/` conversation history is untouched, no data loss.
@@ -156,12 +156,12 @@ Safe — your `~/.claude/projects/` conversation history is untouched, no data l
 ## Tail every log at once
 
 ```bash
-tail -f ~/Library/Logs/claude-stack/*.log ~/Library/Logs/claude-stack/*.err
+tail -f ~/Library/Logs/clawdstacc/*.log ~/Library/Logs/clawdstacc/*.err
 ```
 
 Or with `multitail` for a side-by-side view:
 
 ```bash
 brew install multitail
-multitail ~/Library/Logs/claude-stack/claude-*.log
+multitail ~/Library/Logs/clawdstacc/claude-*.log
 ```

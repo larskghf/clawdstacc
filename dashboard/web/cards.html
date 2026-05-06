@@ -1,0 +1,85 @@
+{{define "stats"}}
+<div class="stat accent">
+  <div class="stat-num">{{.Total}}</div>
+  <div class="stat-label">projects</div>
+</div>
+<div class="stat ok-color">
+  <div class="stat-num">{{.Ready}}</div>
+  <div class="stat-label">ready</div>
+</div>
+<div class="stat info-color">
+  <div class="stat-num">{{.Running}}</div>
+  <div class="stat-label">working</div>
+</div>
+<div class="stat warn-color">
+  <div class="stat-num">{{.Idle}}</div>
+  <div class="stat-label">idle</div>
+</div>
+{{if gt .Setup 0}}
+<div class="stat info-color">
+  <div class="stat-num">{{.Setup}}</div>
+  <div class="stat-label">needs setup</div>
+</div>
+{{end}}
+{{if gt .Down 0}}
+<div class="stat">
+  <div class="stat-num" style="color: var(--err)">{{.Down}}</div>
+  <div class="stat-label">down</div>
+</div>
+{{end}}
+{{end}}
+
+{{define "cards"}}
+{{range .Projects}}
+<div class="card {{cardClass .}}" id="card-{{.Name}}">
+  <div class="card-head">
+    <div class="card-name">
+      <span class="name-dot"></span>{{.Name}}
+    </div>
+    <div class="badges">
+      {{if not .AgentLoaded}}<span class="b info">needs setup</span>{{end}}
+      {{if and .Session .Session.Model}}<span class="b model" title="{{.Session.Model}}">{{modelShort .Session.Model}}</span>{{end}}
+      {{if .TmuxAlive}}<span class="b ok">tmux</span>{{else}}<span class="b err">no tmux</span>{{end}}
+      {{if .ClaudeAlive}}<span class="b ok">claude</span>{{else if .AgentLoaded}}<span class="b warn">no claude</span>{{end}}
+      {{if and .Session (eq .Session.PermissionMode "bypassPermissions")}}<span class="b warn" title="Permission mode: bypass">bypass</span>{{end}}
+      {{if and .Session .Session.OpenToolUse}}<span class="b tool">{{.Session.OpenToolUse}}</span>{{end}}
+    </div>
+  </div>
+
+  <div class="meta-line">
+    <span class="meta">{{activeLabel .}}</span>
+    <span class="meta path-meta">{{.Path}}</span>
+  </div>
+
+  {{if and .Session .Session.OpenToolUse .Session.OpenToolArgs}}
+  <div class="sess-line tool-running">
+    <span class="tool-prefix">▶ {{.Session.OpenToolUse}}:</span> {{.Session.OpenToolArgs}}
+  </div>
+  {{else}}
+  <div class="sess-line {{if not .Session}}empty{{end}}">{{sessionLine .}}</div>
+  {{end}}
+
+  <div class="actions">
+    {{if not .AgentLoaded}}
+      <button class="btn primary"
+              hx-post="/api/setup/{{.Name}}"
+              hx-confirm="Set up &quot;{{.Name}}&quot; — render plist + .vscode/, start launchd agent?"
+              hx-swap="none">Set up</button>
+    {{else}}
+      <a class="btn" href="{{codeServerURL $ .Path}}" target="_blank" rel="noopener">code-server ↗</a>
+      <button class="btn danger"
+              hx-post="/api/restart/{{.Name}}"
+              hx-confirm="Restart session &quot;{{.Name}}&quot;? Current Claude conversation will resume via --continue."
+              hx-swap="none">Restart</button>
+    {{end}}
+  </div>
+</div>
+{{else}}
+<div class="card warn" style="grid-column: 1 / -1;">
+  <div class="card-name"><span class="name-dot"></span>No projects matched</div>
+  <div class="meta-line">
+    <span class="meta">PROJECTS_GLOB returned 0 directories — check clawdstacc.conf</span>
+  </div>
+</div>
+{{end}}
+{{end}}

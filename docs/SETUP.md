@@ -1,6 +1,6 @@
 # Setup walkthrough
 
-Step-by-step instructions for setting up claude-stack on a Mac mini (or any other macOS host).
+Step-by-step instructions for setting up clawdstacc on a Mac mini (or any other macOS host).
 
 ## 1. Prepare the host
 
@@ -25,7 +25,7 @@ Note the IP — you'll reach code-server and the dashboard at it.
 
 ### Remote access from outside
 
-If you also want to reach the host from mobile data or someone else's WiFi, you need a VPN into your home network. claude-stack is agnostic — anything works as long as the host is reachable by IP. Common options:
+If you also want to reach the host from mobile data or someone else's WiFi, you need a VPN into your home network. clawdstacc is agnostic — anything works as long as the host is reachable by IP. Common options:
 
 - **Wireguard on the router** (Fritzbox 7590+, OPNsense, Unifi UDM, etc.) — recommended if your router supports it
 - **OpenVPN on the router** — older but stable
@@ -35,7 +35,7 @@ If you also want to reach the host from mobile data or someone else's WiFi, you 
 
 The VPN tunnel just needs to make the host reachable by IP. Once connected, `ping <host-ip>` should work — that's enough.
 
-claude-stack itself does not expose any ports to the public internet. Everything binds on `0.0.0.0`, meaning it's reachable on the LAN but not from outside. Over the VPN you're logically on the LAN and reach things normally.
+clawdstacc itself does not expose any ports to the public internet. Everything binds on `0.0.0.0`, meaning it's reachable on the LAN but not from outside. Over the VPN you're logically on the LAN and reach things normally.
 
 ## 2. Install tools
 
@@ -67,7 +67,7 @@ Background: launchd starts services with a minimal environment — `~/.zshrc` is
 **b) Optional but recommended: drop in `~/.tmux.conf`** so *new* tmux windows (Ctrl+b c inside a session) also start as login shells:
 
 ```bash
-cp ~/claude-stack/tmux.conf.example ~/.tmux.conf
+cp ~/clawdstacc/tmux.conf.example ~/.tmux.conf
 # tweak as desired, then:
 tmux kill-server  # restart all sessions cleanly
 ```
@@ -88,7 +88,7 @@ If all three answers look right, your shell environment is correctly available i
 
 ## 4. Lay out project folders
 
-claude-stack expects every project in a folder with a leading underscore in your home directory (or any other glob you set in `stack.conf`). Example:
+clawdstacc expects every project in a folder with a leading underscore in your home directory (or any other glob you set in `clawdstacc.conf`). Example:
 
 ```
 ~/_project1/    # main project
@@ -98,22 +98,22 @@ claude-stack expects every project in a folder with a leading underscore in your
 
 The underscore makes stack-managed projects easy to distinguish from your other folders. They appear in the dashboard and the Claude app without the underscore (`project1`, `project2`, `clientwork`).
 
-Each project folder can hold any number of repos — claude-stack always launches `claude` with the project folder as the working directory.
+Each project folder can hold any number of repos — clawdstacc always launches `claude` with the project folder as the working directory.
 
 ## 5. Clone and configure
 
 ```bash
-git clone <your-repo-url> ~/claude-stack
-cd ~/claude-stack
+git clone <your-repo-url> ~/clawdstacc
+cd ~/clawdstacc
 
 # Create the config from the template
-cp stack.conf.example stack.conf
+cp clawdstacc.conf.example clawdstacc.conf
 
 # Adjust — at minimum, set CODESERVER_PASSWORD
-$EDITOR stack.conf
+$EDITOR clawdstacc.conf
 ```
 
-Most important values in `stack.conf`:
+Most important values in `clawdstacc.conf`:
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -128,12 +128,12 @@ Most important values in `stack.conf`:
 ## 6. Run setup
 
 ```bash
-./bin/setup-stack.sh
+./bin/setup.sh
 ```
 
 The script:
 - checks for required tools and aborts on missing ones
-- generates a launchd plist per project (`~/Library/LaunchAgents/com.user.claude-stack.<name>.plist`)
+- generates a launchd plist per project (`~/Library/LaunchAgents/com.user.clawdstacc.<name>.plist`)
 - generates `.vscode/tasks.json` and `.vscode/settings.json` per project
 - generates the code-server and dashboard plists
 - removes orphan plists (renamed-away or deleted projects)
@@ -144,7 +144,7 @@ It is idempotent — safe to run again whenever you add/remove projects or chang
 ## 7. Verify
 
 ```bash
-./bin/stack-status.sh
+./bin/status.sh
 ```
 
 You should see: code-server running, dashboard running, every project with `tmux ●` and `agent ●` green.
@@ -175,11 +175,11 @@ Also, under "General → Login Items", check that nothing blocks login. **FileVa
 
 ## 10. Add new projects
 
-Create a new folder with a leading underscore and re-run `setup-stack.sh`:
+Create a new folder with a leading underscore and re-run `setup.sh`:
 
 ```bash
 mkdir ~/_newproject
-cd ~/claude-stack && ./bin/setup-stack.sh
+cd ~/clawdstacc && ./bin/setup.sh
 ```
 
 Setup is idempotent. Existing sessions are reloaded briefly, the new project shows up everywhere.

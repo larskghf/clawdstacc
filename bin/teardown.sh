@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# teardown-stack.sh — remove all generated launchd plists and stop
+# teardown.sh — remove all generated launchd plists and stop
 # their processes. The .vscode/ folders inside projects and any tmux
 # sessions are left in place; clean them up yourself if you want to.
 
@@ -15,7 +15,7 @@ green()  { printf '\033[32m%s\033[0m\n' "$*"; }
 yellow "This will stop and remove the following launchd agents:"
 echo
 # Current naming
-ls -1 "$LAUNCH_AGENTS_DIR"/com.user.claude-stack.*.plist 2>/dev/null || true
+ls -1 "$LAUNCH_AGENTS_DIR"/com.user.clawdstacc.*.plist 2>/dev/null || true
 # Pre-rename naming (in case anything is still around)
 ls -1 "$LAUNCH_AGENTS_DIR"/com.user.claude.*.plist 2>/dev/null || true
 ls -1 "$LAUNCH_AGENTS_DIR"/com.user.claude-dashboard.plist 2>/dev/null || true
@@ -25,7 +25,7 @@ read -r -p "Continue? [y/N] " confirm
 [ "$confirm" = "y" ] || [ "$confirm" = "Y" ] || { red "Aborted."; exit 1; }
 
 shopt -s nullglob
-for plist in "$LAUNCH_AGENTS_DIR"/com.user.claude-stack.*.plist \
+for plist in "$LAUNCH_AGENTS_DIR"/com.user.clawdstacc.*.plist \
              "$LAUNCH_AGENTS_DIR"/com.user.claude.*.plist \
              "$LAUNCH_AGENTS_DIR"/com.user.claude-dashboard.plist \
              "$LAUNCH_AGENTS_DIR"/com.user.codeserver.plist; do
