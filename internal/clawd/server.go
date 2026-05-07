@@ -1,4 +1,4 @@
-package main
+package clawd
 
 import (
 	"bytes"
@@ -85,11 +85,11 @@ func totalTokens(s *SessionInfo) int64 {
 
 type Summary struct {
 	Total   int
-	Ready   int  // tmux + claude alive
-	Idle    int  // tmux alive but no claude
-	Down    int  // tmux dead
-	Setup   int  // dir exists but no launchd agent
-	Running int  // currently in a tool call
+	Ready   int // tmux + claude alive
+	Idle    int // tmux alive but no claude
+	Down    int // tmux dead
+	Setup   int // dir exists but no launchd agent
+	Running int // currently in a tool call
 }
 
 func summary(snap StatusSnapshot) Summary {
@@ -116,10 +116,15 @@ func summary(snap StatusSnapshot) Summary {
 
 func cardClass(p ProjectStatus) string {
 	switch {
+	case !p.AgentLoaded:
+		// No launchd agent yet — call-to-action state. The CSS gives this a
+		// dashed blue border and tints the background; the actions row shows
+		// the setup-cta button instead of code-server/restart.
+		return "setup"
 	case !p.TmuxAlive:
 		return "dead"
 	case p.Session != nil && p.Session.OpenToolUse != "":
-		return "ok"
+		return "ok running"
 	case p.ClaudeAlive:
 		return "ok"
 	default:
@@ -181,6 +186,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/status", s.handleAPIStatus)
 	mux.HandleFunc("/api/restart/", s.handleAPIRestart)
 	mux.HandleFunc("/api/setup/", s.handleAPISetup)
+	mux.HandleFunc("/api/remove/", s.handleAPIRemove)
 	mux.HandleFunc("/api/paste/", s.handleAPIPaste)
 	mux.HandleFunc("/sse/status", s.handleSSEStatus)
 	mux.HandleFunc("/cs-redirect", s.handleCodeServerRedirect)
@@ -200,7 +206,30 @@ func (s *Server) handleIcon(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-var setupPathRE = regexp.MustCompile(`^/api/setup/([a-zA-Z0-9_-]+)$`)
+var (
+	setupPathRE  = regexp.MustCompile(`^/api/setup/([a-zA-Z0-9_-]+)$`)
+	removePathRE = regexp.MustCompile(`^/api/remove/([a-zA-Z0-9_-]+)$`)
+)
+
+func (s *Server) handleAPIRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	m := removePathRE.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.Error(w, "bad path", http.StatusBadRequest)
+		return
+	}
+	name := m[1]
+	w.Header().Set("Content-Type", "application/json")
+	if err := RemoveProject(s.cfg, name); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+}
 
 func (s *Server) handleAPISetup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

@@ -1,4 +1,4 @@
-package main
+package clawd
 
 import (
 	"fmt"
@@ -13,13 +13,13 @@ import (
 )
 
 type ProjectStatus struct {
-	Name         string       `json:"name"`
-	Path         string       `json:"path"`
-	TmuxAlive    bool         `json:"tmux_alive"`
-	TmuxIdle     *int64       `json:"tmux_idle,omitempty"`
-	ClaudeAlive  bool         `json:"claude_alive"`
-	AgentLoaded  bool         `json:"agent_loaded"`
-	Session      *SessionInfo `json:"session,omitempty"`
+	Name        string       `json:"name"`
+	Path        string       `json:"path"`
+	TmuxAlive   bool         `json:"tmux_alive"`
+	TmuxIdle    *int64       `json:"tmux_idle,omitempty"`
+	ClaudeAlive bool         `json:"claude_alive"`
+	AgentLoaded bool         `json:"agent_loaded"`
+	Session     *SessionInfo `json:"session,omitempty"`
 }
 
 type StatusSnapshot struct {

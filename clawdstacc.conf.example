@@ -9,16 +9,27 @@
 # Default: every folder in $HOME with a leading underscore.
 PROJECTS_GLOB="$HOME/_*"
 
+# Headless mode — disable code-server entirely.
+#
+# Set to "false" if you only use Claude via the iOS/Android Remote Control
+# session and don't need the in-browser IDE. Skips:
+#   - the code-server brew preflight check
+#   - the codeserver launchd plist
+#   - per-project .vscode/{tasks,settings}.json generation
+#   - the "code-server ↗" link in the dashboard
+ENABLE_CODESERVER="true"
+
 # code-server bind address and port. 0.0.0.0 makes it reachable on every
 # interface — the host is then available from any device on your home network
 # (or via VPN) at http://<host>:8443.
+# Ignored when ENABLE_CODESERVER="false".
 CODESERVER_BIND="0.0.0.0:8443"
 
 # Public URL for code-server when accessed through a reverse proxy / tunnel
 # (Cloudflare Tunnel, Tailscale Funnel, etc.). When set AND the dashboard is
 # being accessed via HTTPS, the "code-server ↗" links redirect here instead of
 # to <host>:<port>. Leave empty for LAN-only setups.
-# CODESERVER_PUBLIC_URL="https://code.kghf.io"
+# CODESERVER_PUBLIC_URL="https://code.example.com"
 
 # code-server auth mode: "password" or "none".
 # Set to "none" if you protect code-server with a reverse proxy / Cloudflare

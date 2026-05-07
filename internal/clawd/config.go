@@ -1,4 +1,4 @@
-package main
+package clawd
 
 import (
 	"bufio"
@@ -10,8 +10,12 @@ import (
 
 type Config struct {
 	ProjectsGlob        string
+	EnableCodeServer    bool
 	CodeServerBind      string
+	CodeServerAuth      string // "password" or "none"
+	CodeServerPassword  string
 	CodeServerPublicURL string // optional; e.g. "https://code.kghf.io" for CF Tunnel setups
+	DashboardPort       string
 	LogDir              string
 	BrewPrefix          string
 	ClaudeContinue      string
@@ -25,18 +29,23 @@ type Config struct {
 func DefaultConfig() Config {
 	home, _ := os.UserHomeDir()
 	return Config{
-		ProjectsGlob:     filepath.Join(home, "_*"),
-		CodeServerBind:   "0.0.0.0:8443",
-		LogDir:           filepath.Join(home, "Library/Logs/clawdstacc"),
-		BrewPrefix:       "/opt/homebrew",
-		ClaudeContinue:   "true",
-		ClaudeExtraFlags: "",
+		ProjectsGlob:       filepath.Join(home, "_*"),
+		EnableCodeServer:   true,
+		CodeServerBind:     "0.0.0.0:8443",
+		CodeServerAuth:     "password",
+		CodeServerPassword: "CHANGE_ME",
+		DashboardPort:      "8390",
+		LogDir:             filepath.Join(home, "Library/Logs/clawdstacc"),
+		BrewPrefix:         "/opt/homebrew",
+		ClaudeContinue:     "true",
+		ClaudeExtraFlags:   "",
 	}
 }
 
 var (
 	scalarRE = regexp.MustCompile(`^([A-Z_]+)=(.*)$`)
-	blockRE  = regexp.MustCompile(`(?s)^[ \t]*EXPLICIT_PROJECTS=\(\s*\n(.*?)\n[ \t]*\)\s*$`)
+	// (?ms) — `s` lets `.` cross newlines, `m` makes `^`/`$` match line bounds.
+	blockRE = regexp.MustCompile(`(?ms)^[ \t]*EXPLICIT_PROJECTS=\(\s*\n(.*?)\n[ \t]*\)\s*$`)
 )
 
 func LoadConfig(path string) (Config, error) {
@@ -71,12 +80,20 @@ func LoadConfig(path string) (Config, error) {
 		val = strings.ReplaceAll(val, "$HOME", home)
 
 		switch key {
-		case "CODESERVER_PUBLIC_URL":
-			cfg.CodeServerPublicURL = val
 		case "PROJECTS_GLOB":
 			cfg.ProjectsGlob = val
+		case "ENABLE_CODESERVER":
+			cfg.EnableCodeServer = strings.EqualFold(val, "true") || val == "1"
 		case "CODESERVER_BIND":
 			cfg.CodeServerBind = val
+		case "CODESERVER_AUTH":
+			cfg.CodeServerAuth = val
+		case "CODESERVER_PASSWORD":
+			cfg.CodeServerPassword = val
+		case "CODESERVER_PUBLIC_URL":
+			cfg.CodeServerPublicURL = val
+		case "DASHBOARD_PORT":
+			cfg.DashboardPort = val
 		case "LOG_DIR":
 			cfg.LogDir = val
 		case "BREW_PREFIX":

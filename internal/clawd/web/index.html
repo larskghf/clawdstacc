@@ -225,12 +225,20 @@
   }
 
   .card-head {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: .75rem; margin-bottom: .55rem;
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .65rem; margin-bottom: .55rem;
+    flex-wrap: wrap;
   }
   .card-name {
-    font-size: 1.1rem; font-weight: 650; letter-spacing: -0.015em;
-    word-break: break-all;
+    font-size: 1.05rem; font-weight: 650; letter-spacing: -0.015em;
+    /* Allow ellipsis truncation in a flex container — needs min-width: 0 to
+       opt out of the default flex-basis-as-min-content sizing. */
+    flex: 1 1 0; min-width: 0;
+    display: flex; align-items: center;
+    overflow: hidden;
+  }
+  .card-name-text {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .card-name .name-dot {
     display: inline-block; width: 6px; height: 6px; border-radius: 50%;
@@ -360,6 +368,26 @@
   .btn.danger { color: #fca5a5; border-color: rgba(239,68,68,0.2); }
   .btn.danger:hover { background: var(--err-soft); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
 
+  /* === Setup CTA — same shape as other action buttons, amber-tinted for
+        attention without screaming "primary"-loud. ===  */
+  .btn.setup-cta {
+    color: #fde68a;
+    background: rgba(245, 158, 11, 0.10);
+    border: 1px solid rgba(245, 158, 11, 0.30);
+    font-weight: 600;
+  }
+  .btn.setup-cta:hover {
+    background: rgba(245, 158, 11, 0.20);
+    border-color: rgba(245, 158, 11, 0.55);
+    color: #fef3c7;
+  }
+  .btn.setup-cta .setup-cta-icon {
+    display: inline-block;
+    font-size: .95rem; line-height: 1;
+    margin-right: .25rem;
+    vertical-align: -1px;
+  }
+
   .footer {
     margin-top: 2.5rem; text-align: center;
     color: var(--muted); font-size: .72rem;
@@ -472,6 +500,10 @@
     if (path.startsWith("/api/setup/")) {
       const name = decodeURIComponent(path.split("/").pop());
       toast(ev.detail.successful ? "set up: " + name : "setup failed", ev.detail.successful ? "ok" : "err");
+    }
+    if (path.startsWith("/api/remove/")) {
+      const name = decodeURIComponent(path.split("/").pop());
+      toast(ev.detail.successful ? "removed: " + name : "remove failed", ev.detail.successful ? "ok" : "err");
     }
   });
 

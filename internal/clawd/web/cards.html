@@ -33,8 +33,8 @@
 {{range .Projects}}
 <div class="card {{cardClass .}}" id="card-{{.Name}}">
   <div class="card-head">
-    <div class="card-name">
-      <span class="name-dot"></span>{{.Name}}
+    <div class="card-name" title="{{.Name}}">
+      <span class="name-dot"></span><span class="card-name-text">{{.Name}}</span>
     </div>
     <div class="badges">
       {{if not .AgentLoaded}}<span class="b info">needs setup</span>{{end}}
@@ -61,16 +61,22 @@
 
   <div class="actions">
     {{if not .AgentLoaded}}
-      <button class="btn primary"
+      <button class="btn setup-cta"
               hx-post="/api/setup/{{.Name}}"
               hx-confirm="Set up &quot;{{.Name}}&quot; — render plist + .vscode/, start launchd agent?"
-              hx-swap="none">Set up</button>
+              hx-swap="none">
+        <span class="setup-cta-icon">✨</span>Set up project
+      </button>
     {{else}}
-      <a class="btn" href="{{codeServerURL $ .Path}}" target="_blank" rel="noopener">code-server ↗</a>
-      <button class="btn danger"
+      {{if $.CodeServerLoaded}}<a class="btn" href="{{codeServerURL $ .Path}}" target="_blank" rel="noopener">code-server ↗</a>{{end}}
+      <button class="btn"
               hx-post="/api/restart/{{.Name}}"
               hx-confirm="Restart session &quot;{{.Name}}&quot;? Current Claude conversation will resume via --continue."
               hx-swap="none">Restart</button>
+      <button class="btn danger"
+              hx-post="/api/remove/{{.Name}}"
+              hx-confirm="Remove clawdstacc agent for &quot;{{.Name}}&quot;?&#10;&#10;This stops the launchd agent, deletes the plist, kills the tmux session, and removes generated .vscode/{tasks,settings}.json files. Your project directory and Claude conversation history are kept untouched."
+              hx-swap="none">Remove</button>
     {{end}}
   </div>
 </div>

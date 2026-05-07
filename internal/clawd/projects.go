@@ -1,4 +1,4 @@
-package main
+package clawd
 
 import (
 	"path/filepath"
