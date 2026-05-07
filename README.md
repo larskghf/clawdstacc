@@ -43,7 +43,23 @@ Running [Claude Code](https://claude.com/code) headless on a Mac mini and reachi
 
 ## Quickstart
 
-One-line install:
+### Via Homebrew (tap)
+
+```bash
+brew tap larskghf/tap
+brew install clawdstacc
+
+# Generate the config + register launchd agents (one-time)
+cp $(brew --prefix)/etc/clawdstacc/clawdstacc.conf.example ~/clawdstacc.conf
+$EDITOR ~/clawdstacc.conf
+clawdstacc setup --conf ~/clawdstacc.conf
+```
+
+`brew install` pulls `tmux` and `code-server` automatically. The Claude Code CLI is not on Homebrew — `curl -fsSL https://claude.com/install.sh | bash`.
+
+### Via curl (full bootstrap)
+
+One-line install — clones the repo, builds the binary, generates a fresh `CODESERVER_PASSWORD`, runs setup:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)

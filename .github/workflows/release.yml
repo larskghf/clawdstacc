@@ -30,4 +30,9 @@ jobs:
           version: latest
           args: release --clean
         env:
+          # Default token: pushes to clawdstacc itself (release assets, etc.)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Cross-repo PAT: GoReleaser uses this to push the auto-generated
+          # Homebrew formula to larskghf/homebrew-tap. Must have
+          # `contents: write` on the tap repo. See repo Settings → Secrets.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

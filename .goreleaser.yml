@@ -33,7 +33,8 @@ archives:
     formats: ['tar.gz']
     # Bundle the binary plus everything a user needs on a clean Mac.
     # Templates and HTML are embedded in the binary via go:embed; no need to
-    # ship duplicates in the archive.
+    # ship duplicates in the archive. The Homebrew formula's `etc.install`
+    # picks up clawdstacc.conf.example from this tarball.
     files:
       - LICENSE
       - README.md
@@ -42,6 +43,51 @@ archives:
       - tmux.conf.example
       - install.sh
       - docs/**/*
+
+# Homebrew tap — GoReleaser auto-generates Formula/clawdstacc.rb on every
+# tagged release and pushes it to larskghf/homebrew-tap. Users then:
+#   brew tap larskghf/tap
+#   brew install clawdstacc
+#
+# The PAT in HOMEBREW_TAP_GITHUB_TOKEN needs `contents: write` on the tap
+# repo. See README → "Install" for the user-facing one-liner.
+brews:
+  - name: clawdstacc
+    repository:
+      owner: larskghf
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/larskghf/clawdstacc"
+    description: "Self-hosted Codespaces for Claude Code, on your own Mac"
+    license: "MIT"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "chore: bump clawdstacc to {{ .Tag }}"
+    dependencies:
+      - name: tmux
+      - name: code-server
+    install: |
+      bin.install "bin/clawdstacc"
+      # Stash the conf example under HOMEBREW_PREFIX/etc/clawdstacc/ so users
+      # can copy it without hunting for the source tarball later.
+      (etc/"clawdstacc").install "clawdstacc.conf.example"
+    test: |
+      assert_match "clawdstacc", shell_output("#{bin}/clawdstacc version")
+    caveats: |
+      clawdstacc also needs the Claude Code CLI (not on brew):
+        curl -fsSL https://claude.com/install.sh | bash
+
+      First-time setup:
+        cp #{etc}/clawdstacc/clawdstacc.conf.example ~/clawdstacc.conf
+        $EDITOR ~/clawdstacc.conf
+        clawdstacc setup --conf ~/clawdstacc.conf
+
+      Or use the bundled installer for the full bootstrap (clones repo,
+      generates a fresh CODESERVER_PASSWORD, runs setup):
+        bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
 
 checksum:
   name_template: 'checksums.txt'
