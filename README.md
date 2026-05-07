@@ -68,7 +68,7 @@ Then open <http://localhost:8390> for the dashboard and <http://localhost:8443> 
 |---|---|
 | **`brew install`** (above) | Recommended for everyone. Auto-deps, signed update path, no source clone. |
 | **`bash <(curl … install.sh)`** | If you want the source tree locally (e.g. to hack on the dashboard). Clones repo to `~/clawdstacc`, builds the binary, generates `clawdstacc.conf` with a random `CODESERVER_PASSWORD`, runs setup. |
-| **Manual** | Clone, `cp clawdstacc.conf.example clawdstacc.conf`, edit, `go build -o bin/clawdstacc ./cmd/clawdstacc && ./bin/clawdstacc setup`. |
+| **Manual** | Clone, `cp clawdstacc.conf.example clawdstacc.conf`, edit, `go build -o bin/clawdstacc ./cmd/clawdstacc && clawdstacc setup`. |
 
 **Headless** (skip code-server, only Remote Control sessions): set `ENABLE_CODESERVER="false"` in your conf. Or via the curl installer: `CLAWDSTACC_HEADLESS=1 bash <(curl …)`.
 
@@ -153,7 +153,7 @@ Edit `clawdstacc.conf`. Highlights:
 | `BREW_PREFIX` | `/opt/homebrew` | Apple Silicon. Set `/usr/local` for Intel |
 | `EXPLICIT_PROJECTS` | (unset) | Bash array — overrides the glob if present |
 
-After editing, re-run `./bin/clawdstacc setup` to apply (idempotent).
+After editing, re-run `clawdstacc setup` to apply (idempotent).
 
 ## Going public (Cloudflare Tunnel + Access)
 
@@ -204,7 +204,7 @@ What changes in headless mode:
 - Per-project `.vscode/{tasks,settings}.json` files are **not written**
 - The dashboard hides the **"code-server ↗"** button on every card
 
-The Claude Remote Control sessions and the dashboard remain fully functional. Switch back any time by setting `ENABLE_CODESERVER="true"` and re-running `./bin/clawdstacc setup`.
+The Claude Remote Control sessions and the dashboard remain fully functional. Switch back any time by setting `ENABLE_CODESERVER="true"` and re-running `clawdstacc setup`.
 
 ## Day-to-day
 
@@ -212,26 +212,26 @@ Everything is one binary. Subcommands:
 
 ```bash
 # CLI status of every component (coloured table)
-./bin/clawdstacc status
+clawdstacc status
 
 # Re-render plists after editing the config (idempotent)
-./bin/clawdstacc setup
+clawdstacc setup
 
 # Attach / list / kill clawdstacc tmux sessions (uses the dedicated socket)
-./bin/clawdstacc tmux ls
-./bin/clawdstacc tmux attach -t <project-name>
+clawdstacc tmux ls
+clawdstacc tmux attach -t <project-name>
 
 # Stop and remove a single project (keeps the project dir + Claude history)
-./bin/clawdstacc remove <project-name>
+clawdstacc remove <project-name>
 
 # Stop and remove every launchd agent
-./bin/clawdstacc teardown
+clawdstacc teardown
 
 # Run the dashboard in the foreground (default subcommand if you omit it)
-./bin/clawdstacc dashboard --addr 127.0.0.1:8390
+clawdstacc dashboard --addr 127.0.0.1:8390
 
 # Print version
-./bin/clawdstacc version
+clawdstacc version
 ```
 
 Other useful one-liners:
@@ -275,7 +275,7 @@ go test ./...
 go build -o bin/clawdstacc ./cmd/clawdstacc
 
 # Apply changes live (rebuilds + reloads dashboard, leaves agents alone)
-./bin/clawdstacc setup
+clawdstacc setup
 launchctl kickstart -k "gui/$(id -u)/com.user.clawdstacc.dashboard"
 ```
 

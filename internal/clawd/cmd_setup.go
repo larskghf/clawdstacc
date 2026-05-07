@@ -29,14 +29,20 @@ func cmdSetup(args []string) {
 		*confPath = abs
 	}
 
+	if _, err := os.Stat(*confPath); os.IsNotExist(err) {
+		if err := bootstrapConfFromExample(*confPath); err != nil {
+			die("clawdstacc.conf not found at %s and could not bootstrap from example: %v", *confPath, err)
+		}
+		fmt.Printf("%s wrote default config: %s\n", green("✓"), *confPath)
+		fmt.Println("  Review it (PROJECTS_GLOB, CLAUDE_EXTRA_FLAGS, code-server bits) and re-run `clawdstacc setup`.")
+		os.Exit(0)
+	}
+
 	cfg, err := LoadConfig(*confPath)
 	if err != nil {
 		die("load config %s: %v", *confPath, err)
 	}
 	cfg.RepoDir = filepath.Dir(*confPath)
-	if _, err := os.Stat(*confPath); os.IsNotExist(err) {
-		die("clawdstacc.conf not found at %s — copy clawdstacc.conf.example and edit it.", *confPath)
-	}
 
 	exePath, _ := os.Executable()
 	home, _ := os.UserHomeDir()
@@ -284,6 +290,40 @@ func writeDashboardPlist(dst, exePath, confPath string, cfg Config, home string)
 		"DASHBOARD_PORT":  cfg.DashboardPort,
 	}
 	return writePlist("dashboard.plist.tmpl", dst, vars)
+}
+
+// bootstrapConfFromExample copies the bundled clawdstacc.conf.example to dst,
+// creating parent directories as needed. The example is searched at known
+// install-method-specific locations relative to the running binary:
+//
+//  1. <exe-dir>/../etc/clawdstacc/clawdstacc.conf.example  (Homebrew install,
+//     where the formula stashes it under HOMEBREW_PREFIX/etc/clawdstacc/)
+//  2. <exe-dir>/../clawdstacc.conf.example                 (source-tree build,
+//     binary lives at <repo>/bin/clawdstacc, example at <repo>/clawdstacc.conf.example)
+func bootstrapConfFromExample(dst string) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locate executable: %w", err)
+	}
+	exeDir := filepath.Dir(exe)
+	candidates := []string{
+		filepath.Join(exeDir, "..", "etc", "clawdstacc", "clawdstacc.conf.example"),
+		filepath.Join(exeDir, "..", "clawdstacc.conf.example"),
+	}
+	for _, src := range candidates {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			return fmt.Errorf("mkdir %s: %w", filepath.Dir(dst), err)
+		}
+		if err := os.WriteFile(dst, data, 0o644); err != nil {
+			return fmt.Errorf("write %s: %w", dst, err)
+		}
+		return nil
+	}
+	return fmt.Errorf("no example found at %s", strings.Join(candidates, " or "))
 }
 
 // writePlist renders an embedded template and writes the result to dst.
