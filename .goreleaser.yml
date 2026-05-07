@@ -1,0 +1,96 @@
+version: 2
+
+project_name: clawdstacc
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: clawdstacc
+    main: ./cmd/clawdstacc
+    binary: bin/clawdstacc
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: clawdstacc
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: ['tar.gz']
+    # Bundle the binary plus everything a user needs on a clean Mac.
+    # Templates and HTML are embedded in the binary via go:embed; no need to
+    # ship duplicates in the archive.
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+      - clawdstacc.conf.example
+      - tmux.conf.example
+      - install.sh
+      - docs/**/*
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: 'New features'
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: 'Documentation'
+      regexp: '^.*?docs(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^chore:'
+      - '^test:'
+      - '^ci:'
+      - 'merge conflict'
+      - Merge pull request
+      - Merge remote-tracking branch
+      - Merge branch
+
+release:
+  github:
+    owner: larskghf
+    name: clawdstacc
+  prerelease: auto
+  header: |
+    ## clawdstacc {{ .Tag }}
+
+    Self-hosted Codespaces for Claude Code, on your own Mac.
+
+    ### Install
+
+    ```bash
+    bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
+    ```
+
+    Or grab the archive below, unpack, and run `./bin/clawdstacc setup`.
+  footer: |
+    **Full Changelog**: https://github.com/larskghf/clawdstacc/compare/{{ .PreviousTag }}...{{ .Tag }}
