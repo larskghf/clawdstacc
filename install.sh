@@ -70,9 +70,6 @@ if ! command -v brew >/dev/null 2>&1; then
   exit 1
 fi
 
-# Apple Silicon: brew lives at /opt/homebrew. Intel: /usr/local.
-BREW_PREFIX="$(brew --prefix)"
-
 # --- dependency check & install ---
 
 required_tools=(tmux go)
