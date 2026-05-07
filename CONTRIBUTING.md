@@ -10,7 +10,7 @@ Before opening a new issue, please check whether it's already tracked.
 For bug reports, the more of these we have the faster we can help:
 
 - macOS version + chip (Apple Silicon / Intel)
-- Output of `./bin/clawdstacc status`
+- Output of `clawdstacc status`
 - Tail of relevant logs (`~/Library/Logs/clawdstacc/*.err`)
 - Steps to reproduce
 
@@ -21,21 +21,22 @@ Use the `bug_report` template in `.github/ISSUE_TEMPLATE/` to skip the back-and-
 ```bash
 git clone https://github.com/<your-fork>/clawdstacc.git
 cd clawdstacc
-cp clawdstacc.conf.example clawdstacc.conf
-$EDITOR clawdstacc.conf       # set CODESERVER_PASSWORD or CODESERVER_AUTH=none
-./bin/clawdstacc setup
+go build -o bin/clawdstacc ./cmd/clawdstacc
+
+# First run bootstraps ~/.config/clawdstacc/clawdstacc.conf from the example next to the binary, then exits
+bin/clawdstacc setup
+$EDITOR ~/.config/clawdstacc/clawdstacc.conf   # set CODESERVER_PASSWORD or CODESERVER_AUTH=none
+bin/clawdstacc setup                            # second run: render plists + register with launchd
 ```
 
-This builds the unified `bin/clawdstacc` binary, generates plists, and
-registers everything with launchd. Re-running `./bin/clawdstacc setup` is
-safe (idempotent).
+Re-running setup is idempotent.
 
 ### Working on the binary
 
 ```bash
 go vet ./...
 go test ./...
-go build -o bin/clawdstacc .
+go build -o bin/clawdstacc ./cmd/clawdstacc
 
 # Apply changes (rebuilds + reloads only the dashboard agent)
 launchctl kickstart -k "gui/$(id -u)/com.user.clawdstacc.dashboard"
@@ -59,7 +60,7 @@ Run `shellcheck install.sh` before submitting. CI does the same.
   `renderEmbeddedTemplate` in `templates_embed.go`. New templates must follow
   the same scheme.
 - **Plist labels** follow `com.user.clawdstacc.<role-or-name>`. Keep this
-  consistent — `./bin/clawdstacc status` and the dashboard both parse it.
+  consistent — `clawdstacc status` and the dashboard both parse it.
 - **Logs** go to `~/Library/Logs/clawdstacc/<service>.{log,err}`.
 
 ## Commit messages

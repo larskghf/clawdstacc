@@ -51,12 +51,11 @@ brew install clawdstacc
 # 2. Claude Code CLI (not on brew)
 curl -fsSL https://claude.com/install.sh | bash
 
-# 3. Config goes to XDG; the binary searches there by default.
-mkdir -p ~/.config/clawdstacc
-cp $(brew --prefix)/etc/clawdstacc/clawdstacc.conf.example ~/.config/clawdstacc/clawdstacc.conf
+# 3. First run bootstraps ~/.config/clawdstacc/clawdstacc.conf with defaults, then exits
+clawdstacc setup
 $EDITOR ~/.config/clawdstacc/clawdstacc.conf
 
-# 4. Register launchd agents
+# 4. Second run registers launchd agents
 clawdstacc setup
 ```
 
@@ -266,16 +265,18 @@ ln -s ~/clawdstacc/bin/clawdstacc ~/.local/bin/clawdstacc
 ```bash
 git clone https://github.com/larskghf/clawdstacc.git
 cd clawdstacc
-cp clawdstacc.conf.example clawdstacc.conf
-$EDITOR clawdstacc.conf
 
 # Build + test
 go vet ./...
 go test ./...
 go build -o bin/clawdstacc ./cmd/clawdstacc
 
-# Apply changes live (rebuilds + reloads dashboard, leaves agents alone)
-clawdstacc setup
+# First run auto-bootstraps ~/.config/clawdstacc/clawdstacc.conf from the example
+bin/clawdstacc setup
+$EDITOR ~/.config/clawdstacc/clawdstacc.conf
+
+# Apply (rebuilds + reloads dashboard, leaves agents alone)
+bin/clawdstacc setup
 launchctl kickstart -k "gui/$(id -u)/com.user.clawdstacc.dashboard"
 ```
 
@@ -285,7 +286,7 @@ launchctl kickstart -k "gui/$(id -u)/com.user.clawdstacc.dashboard"
 clawdstacc/
 ├── cmd/clawdstacc/         # entrypoint (5-line main, calls into internal/clawd)
 ├── internal/clawd/         # all the actual code
-│   ├── cmd_*.go            # subcommand handlers (setup/teardown/status/dashboard/version)
+│   ├── cmd_*.go            # subcommand handlers (setup/teardown/status/dashboard/remove/tmux/version)
 │   ├── server.go           # HTTP routes, SSE, HTMX endpoints
 │   ├── status.go           # CollectStatus, tmux/launchctl probing
 │   ├── jsonl.go            # JSONL parser for session info

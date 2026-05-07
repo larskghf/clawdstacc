@@ -94,18 +94,31 @@ The underscore makes stack-managed projects easy to distinguish from your other 
 
 Each project folder can hold any number of repos — clawdstacc always launches `claude` with the project folder as the working directory.
 
-## 5. Clone and configure
+## 5. Install and configure
+
+Use Homebrew (recommended):
 
 ```bash
-git clone <your-repo-url> ~/clawdstacc
-cd ~/clawdstacc
-
-# Create the config from the template
-cp clawdstacc.conf.example clawdstacc.conf
-
-# Adjust — at minimum, set CODESERVER_PASSWORD
-$EDITOR clawdstacc.conf
+brew tap larskghf/tap
+brew install clawdstacc
 ```
+
+The first `clawdstacc setup` run bootstraps `~/.config/clawdstacc/clawdstacc.conf` from the bundled example and exits — review it before re-running:
+
+```bash
+clawdstacc setup
+$EDITOR ~/.config/clawdstacc/clawdstacc.conf
+```
+
+If you'd rather build from source:
+
+```bash
+git clone https://github.com/larskghf/clawdstacc.git ~/clawdstacc
+cd ~/clawdstacc
+go build -o bin/clawdstacc ./cmd/clawdstacc
+```
+
+The same auto-bootstrap kicks in — `clawdstacc setup` from inside the repo finds the `clawdstacc.conf.example` next to the binary.
 
 Most important values in `clawdstacc.conf`:
 
@@ -122,7 +135,7 @@ Most important values in `clawdstacc.conf`:
 ## 6. Run setup
 
 ```bash
-./bin/clawdstacc setup
+clawdstacc setup
 ```
 
 The script:
@@ -138,7 +151,7 @@ It is idempotent — safe to run again whenever you add/remove projects or chang
 ## 7. Verify
 
 ```bash
-./bin/clawdstacc status
+clawdstacc status
 ```
 
 You should see: code-server running, dashboard running, every project with `tmux ●` and `agent ●` green.

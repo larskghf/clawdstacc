@@ -16,7 +16,7 @@ The plist itself adds `~/.local/bin` to its own PATH, so the launchd-managed pro
 First checks:
 
 ```bash
-./bin/clawdstacc status
+clawdstacc status
 ```
 
 - `tmux ●` red? → no tmux session. Look at the logs: `tail ~/Library/Logs/clawdstacc/claude-<name>.err`
@@ -151,8 +151,8 @@ In some cases adding `bash` itself to the same list helps too.
 If the configuration feels tangled:
 
 ```bash
-./bin/clawdstacc teardown    # remove plists and stop processes
-./bin/clawdstacc setup       # regenerate everything
+clawdstacc teardown    # remove plists and stop processes
+clawdstacc setup       # regenerate everything
 ```
 
 Safe — your `~/.claude/projects/` conversation history is untouched, no data loss.

@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Auto-bootstrap of `clawdstacc.conf`**. First `clawdstacc setup` run with
+  no config writes the bundled example to `~/.config/clawdstacc/clawdstacc.conf`
+  and exits, so users can review before the second run renders plists.
+  Searches the example next to the binary — works for both Homebrew
+  (`$(brew --prefix)/etc/clawdstacc/`) and source-tree builds.
 - **Dedicated tmux server socket (`tmux -L clawdstacc`)**. Clawdstacc no
   longer touches your personal `~/.tmux.conf` or the default tmux server.
   Its config is embedded in the binary, written once to

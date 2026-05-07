@@ -79,15 +79,12 @@ brews:
       clawdstacc also needs the Claude Code CLI (not on brew):
         curl -fsSL https://claude.com/install.sh | bash
 
-      First-time setup (config goes to XDG, the binary picks it up automatically):
-        mkdir -p ~/.config/clawdstacc
-        cp #{etc}/clawdstacc/clawdstacc.conf.example ~/.config/clawdstacc/clawdstacc.conf
+      First-time setup — the first `clawdstacc setup` writes
+      ~/.config/clawdstacc/clawdstacc.conf from the bundled defaults and
+      exits. Review it, then re-run:
+        clawdstacc setup
         $EDITOR ~/.config/clawdstacc/clawdstacc.conf
         clawdstacc setup
-
-      Or use the bundled installer for the full bootstrap (clones repo,
-      generates a fresh CODESERVER_PASSWORD, runs setup):
-        bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
 
 checksum:
   name_template: 'checksums.txt'
@@ -134,9 +131,10 @@ release:
     ### Install
 
     ```bash
-    bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
+    brew tap larskghf/tap
+    brew install clawdstacc
     ```
 
-    Or grab the archive below, unpack, and run `./bin/clawdstacc setup`.
+    Or grab the archive below for a manual install.
   footer: |
     **Full Changelog**: https://github.com/larskghf/clawdstacc/compare/{{ .PreviousTag }}...{{ .Tag }}
