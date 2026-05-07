@@ -20,6 +20,15 @@ func cmdSetup(args []string) {
 		die("flags: %v", err)
 	}
 
+	// Absolute-ify the conf path before doing anything else: it ends up
+	// embedded in the rendered dashboard plist as $CLAWDSTACC_CONF, and
+	// launchd starts services in its own working directory — so a relative
+	// path silently fails to load there and the dashboard falls back to
+	// defaults (CODESERVER_PUBLIC_URL drops out, etc.).
+	if abs, err := filepath.Abs(*confPath); err == nil {
+		*confPath = abs
+	}
+
 	cfg, err := LoadConfig(*confPath)
 	if err != nil {
 		die("load config %s: %v", *confPath, err)
