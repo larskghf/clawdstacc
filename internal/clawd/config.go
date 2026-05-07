@@ -14,7 +14,7 @@ type Config struct {
 	CodeServerBind      string
 	CodeServerAuth      string // "password" or "none"
 	CodeServerPassword  string
-	CodeServerPublicURL string // optional; e.g. "https://code.kghf.io" for CF Tunnel setups
+	CodeServerPublicURL string // optional; e.g. "https://code.example.com" for CF Tunnel setups
 	DashboardPort       string
 	LogDir              string
 	BrewPrefix          string
