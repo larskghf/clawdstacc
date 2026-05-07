@@ -39,6 +39,12 @@ func tmuxSessionInfo(name string) (alive bool, pid string, idle *int64) {
 	}
 	parts := strings.SplitN(out, "|", 2)
 	activityStr, p := parts[0], parts[1]
+	// tmux returns "|" with both fields empty (and exit 0!) when -t targets a
+	// non-existent session — treat that as not-alive rather than silently
+	// reporting a phantom session.
+	if activityStr == "" || p == "" {
+		return false, "", nil
+	}
 	if activityTs, err := strconv.ParseInt(activityStr, 10, 64); err == nil {
 		ago := time.Now().Unix() - activityTs
 		idle = &ago
