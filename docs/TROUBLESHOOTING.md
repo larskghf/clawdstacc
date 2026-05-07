@@ -2,7 +2,7 @@
 
 ## "claude: command not found" during setup
 
-`setup.sh` checks that `claude` is on your PATH. If the native installer didn't add the path to your shell config, add it manually:
+`clawdstacc setup` checks that `claude` is on your PATH. If the native installer didn't add the path to your shell config, add it manually:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc

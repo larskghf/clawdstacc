@@ -169,11 +169,13 @@ Also, under "General → Login Items", check that nothing blocks login. **FileVa
 
 ## 10. Add new projects
 
-Create a new folder with a leading underscore and re-run `setup.sh`:
+Create a new folder with a leading underscore. The dashboard auto-discovers it within ~2 seconds and shows a "Set up project" button on the new card — one click and the launchd agent is registered.
+
+If you prefer the CLI:
 
 ```bash
 mkdir ~/_newproject
-cd ~/clawdstacc && ./bin/clawdstacc setup
+clawdstacc setup
 ```
 
 Setup is idempotent. Existing sessions are reloaded briefly, the new project shows up everywhere.
