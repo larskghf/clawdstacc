@@ -43,46 +43,33 @@ Running [Claude Code](https://claude.com/code) headless on a Mac mini and reachi
 
 ## Quickstart
 
-### Via Homebrew (tap)
-
 ```bash
+# 1. Install — brew pulls in tmux + code-server automatically
 brew tap larskghf/tap
 brew install clawdstacc
 
-# Generate the config + register launchd agents (one-time)
+# 2. Claude Code CLI (not on brew)
+curl -fsSL https://claude.com/install.sh | bash
+
+# 3. Config — copy the example and set CODESERVER_PASSWORD (or AUTH=none)
 cp $(brew --prefix)/etc/clawdstacc/clawdstacc.conf.example ~/clawdstacc.conf
 $EDITOR ~/clawdstacc.conf
+
+# 4. Register launchd agents
 clawdstacc setup --conf ~/clawdstacc.conf
 ```
 
-`brew install` pulls `tmux` and `code-server` automatically. The Claude Code CLI is not on Homebrew — `curl -fsSL https://claude.com/install.sh | bash`.
-
-### Via curl (full bootstrap)
-
-One-line install — clones the repo, builds the binary, generates a fresh `CODESERVER_PASSWORD`, runs setup:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
-```
-
-The installer:
-
-1. Verifies macOS + Homebrew
-2. Offers to `brew install` any missing tools (`tmux`, `code-server`, `go`)
-3. Installs the Claude Code CLI if needed
-4. Clones the repo to `~/clawdstacc`
-5. Generates a fresh `clawdstacc.conf` with a random `CODESERVER_PASSWORD`
-6. Builds the unified `bin/clawdstacc` Go binary
-7. Runs `bin/clawdstacc setup` — registers all launchd agents
-
 Then open <http://localhost:8390> for the dashboard and <http://localhost:8443> for code-server.
 
-> **Manual install?** Clone, copy `clawdstacc.conf.example` → `clawdstacc.conf`, edit, run `go build -o bin/clawdstacc . && ./bin/clawdstacc setup`.
->
-> **Headless?** Add `CLAWDSTACC_HEADLESS=1` to skip code-server entirely:
-> ```bash
-> CLAWDSTACC_HEADLESS=1 bash <(curl -fsSL https://raw.githubusercontent.com/larskghf/clawdstacc/main/install.sh)
-> ```
+### Install paths
+
+| | When to use |
+|---|---|
+| **`brew install`** (above) | Recommended for everyone. Auto-deps, signed update path, no source clone. |
+| **`bash <(curl … install.sh)`** | If you want the source tree locally (e.g. to hack on the dashboard). Clones repo to `~/clawdstacc`, builds the binary, generates `clawdstacc.conf` with a random `CODESERVER_PASSWORD`, runs setup. |
+| **Manual** | Clone, `cp clawdstacc.conf.example clawdstacc.conf`, edit, `go build -o bin/clawdstacc ./cmd/clawdstacc && ./bin/clawdstacc setup`. |
+
+**Headless** (skip code-server, only Remote Control sessions): set `ENABLE_CODESERVER="false"` in your conf. Or via the curl installer: `CLAWDSTACC_HEADLESS=1 bash <(curl …)`.
 
 ### Adding a project
 

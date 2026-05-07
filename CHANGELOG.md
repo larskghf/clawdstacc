@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Homebrew install** as the recommended path:
+  `brew tap larskghf/tap && brew install clawdstacc`. The formula pulls in
+  `tmux` and `code-server` automatically and stashes the conf example under
+  `$(brew --prefix)/etc/clawdstacc/`. Auto-published by GoReleaser to
+  `larskghf/homebrew-tap` on every tagged release.
 - **Unified `clawdstacc` Go binary** with subcommands (`dashboard`, `setup`,
   `status`, `remove`, `teardown`, `version`). Replaces the previous bash-script
   trio (`bin/setup.sh`, `bin/teardown.sh`, `bin/status.sh`). Templates are
