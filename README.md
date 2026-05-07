@@ -51,12 +51,13 @@ brew install clawdstacc
 # 2. Claude Code CLI (not on brew)
 curl -fsSL https://claude.com/install.sh | bash
 
-# 3. Config — copy the example and set CODESERVER_PASSWORD (or AUTH=none)
-cp $(brew --prefix)/etc/clawdstacc/clawdstacc.conf.example ~/clawdstacc.conf
-$EDITOR ~/clawdstacc.conf
+# 3. Config goes to XDG; the binary searches there by default.
+mkdir -p ~/.config/clawdstacc
+cp $(brew --prefix)/etc/clawdstacc/clawdstacc.conf.example ~/.config/clawdstacc/clawdstacc.conf
+$EDITOR ~/.config/clawdstacc/clawdstacc.conf
 
 # 4. Register launchd agents
-clawdstacc setup --conf ~/clawdstacc.conf
+clawdstacc setup
 ```
 
 Then open <http://localhost:8390> for the dashboard and <http://localhost:8443> for code-server.

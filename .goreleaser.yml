@@ -79,10 +79,11 @@ brews:
       clawdstacc also needs the Claude Code CLI (not on brew):
         curl -fsSL https://claude.com/install.sh | bash
 
-      First-time setup:
-        cp #{etc}/clawdstacc/clawdstacc.conf.example ~/clawdstacc.conf
-        $EDITOR ~/clawdstacc.conf
-        clawdstacc setup --conf ~/clawdstacc.conf
+      First-time setup (config goes to XDG, the binary picks it up automatically):
+        mkdir -p ~/.config/clawdstacc
+        cp #{etc}/clawdstacc/clawdstacc.conf.example ~/.config/clawdstacc/clawdstacc.conf
+        $EDITOR ~/.config/clawdstacc/clawdstacc.conf
+        clawdstacc setup
 
       Or use the bundled installer for the full bootstrap (clones repo,
       generates a fresh CODESERVER_PASSWORD, runs setup):

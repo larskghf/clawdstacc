@@ -42,17 +42,34 @@ func cmdDashboard(args []string) {
 	}
 }
 
-// defaultConfPath returns the conventional location of clawdstacc.conf
-// (sibling to the bin/ directory the binary was launched from), or
-// $CLAWDSTACC_CONF if set.
+// defaultConfPath looks for a clawdstacc.conf in the conventional locations,
+// in priority order:
+//
+//  1. $CLAWDSTACC_CONF (explicit override — wins over everything)
+//  2. ~/.config/clawdstacc/clawdstacc.conf (XDG, recommended for brew installs)
+//  3. ~/clawdstacc.conf (user-home shortcut for the install.sh bootstrap)
+//  4. <binary-dir>/../clawdstacc.conf (source-tree install, sibling to bin/)
+//
+// Returns the first path that exists. If none exists, returns the XDG path so
+// `--help` and error messages point at the recommended location.
 func defaultConfPath() string {
 	if c := os.Getenv("CLAWDSTACC_CONF"); c != "" {
 		return c
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return "clawdstacc.conf"
+	home, _ := os.UserHomeDir()
+	xdg := filepath.Join(home, ".config", "clawdstacc", "clawdstacc.conf")
+
+	candidates := []string{
+		xdg,
+		filepath.Join(home, "clawdstacc.conf"),
 	}
-	// Repo layout: <repo>/bin/clawdstacc → conf at <repo>/clawdstacc.conf
-	return filepath.Join(filepath.Dir(exe), "..", "clawdstacc.conf")
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "..", "clawdstacc.conf"))
+	}
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return xdg
 }
