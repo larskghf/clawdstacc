@@ -16,7 +16,7 @@ The plist itself adds `~/.local/bin` to its own PATH, so the launchd-managed pro
 First checks:
 
 ```bash
-./bin/status.sh
+./bin/clawdstacc status
 ```
 
 - `tmux ●` red? → no tmux session. Look at the logs: `tail ~/Library/Logs/clawdstacc/claude-<name>.err`
@@ -124,7 +124,7 @@ launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.user.clawdstacc.<p
 
 ## Dashboard says "agent: no agent" while `launchctl list` shows it
 
-The dashboard parses `launchctl list` with a regex. On very old macOS the format may differ slightly. If `tmux ●` and `claude ●` are green, you're fine — the agent badge is secondary. If you want to fix it, adjust `agentLoaded()` in `dashboard/status.go`.
+The dashboard parses `launchctl list` with a regex. On very old macOS the format may differ slightly. If `tmux ●` and `claude ●` are green, you're fine — the agent badge is secondary. If you want to fix it, adjust `agentLoaded()` in `status.go`.
 
 ## code-server "Connection lost" after idle
 
@@ -147,8 +147,8 @@ In some cases adding `bash` itself to the same list helps too.
 If the configuration feels tangled:
 
 ```bash
-./bin/teardown.sh    # remove plists and stop processes
-./bin/setup.sh       # regenerate everything
+./bin/clawdstacc teardown    # remove plists and stop processes
+./bin/clawdstacc setup       # regenerate everything
 ```
 
 Safe — your `~/.claude/projects/` conversation history is untouched, no data loss.

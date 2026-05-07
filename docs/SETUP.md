@@ -128,7 +128,7 @@ Most important values in `clawdstacc.conf`:
 ## 6. Run setup
 
 ```bash
-./bin/setup.sh
+./bin/clawdstacc setup
 ```
 
 The script:
@@ -144,7 +144,7 @@ It is idempotent — safe to run again whenever you add/remove projects or chang
 ## 7. Verify
 
 ```bash
-./bin/status.sh
+./bin/clawdstacc status
 ```
 
 You should see: code-server running, dashboard running, every project with `tmux ●` and `agent ●` green.
@@ -179,7 +179,7 @@ Create a new folder with a leading underscore and re-run `setup.sh`:
 
 ```bash
 mkdir ~/_newproject
-cd ~/clawdstacc && ./bin/setup.sh
+cd ~/clawdstacc && ./bin/clawdstacc setup
 ```
 
 Setup is idempotent. Existing sessions are reloaded briefly, the new project shows up everywhere.
