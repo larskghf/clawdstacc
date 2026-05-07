@@ -31,8 +31,8 @@ type StatusSnapshot struct {
 
 func tmuxSessionInfo(name string) (alive bool, pid string, idle *int64) {
 	out := sh(fmt.Sprintf(
-		`tmux display-message -p -t %s '#{session_activity}|#{pane_pid}'`,
-		shellQuote(name),
+		`%s display-message -p -t %s '#{session_activity}|#{pane_pid}'`,
+		tmuxShPrefix(), shellQuote(name),
 	), "")
 	if out == "" || !strings.Contains(out, "|") {
 		return false, "", nil
@@ -132,7 +132,7 @@ func RestartProject(name string) error {
 	if !agentLoaded(label) {
 		return fmt.Errorf("unknown project: %s", name)
 	}
-	sh(fmt.Sprintf("tmux kill-session -t %s 2>/dev/null", shellQuote(name)), "")
+	sh(fmt.Sprintf("%s kill-session -t %s 2>/dev/null", tmuxShPrefix(), shellQuote(name)), "")
 	uid := os.Getuid()
 	cmd := exec.Command("launchctl", "kickstart", "-k", fmt.Sprintf("gui/%d/%s", uid, label))
 	out, err := cmd.CombinedOutput()

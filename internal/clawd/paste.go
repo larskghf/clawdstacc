@@ -31,7 +31,7 @@ func PasteImage(name string, data []byte, ext string) (string, error) {
 	// Sanity-check the session exists before writing anything to disk.
 	// `sh()` flattens success and failure to the same empty string when there's
 	// no stdout, so we use exec.Command directly to read the actual exit code.
-	if err := exec.Command("tmux", "has-session", "-t", name).Run(); err != nil {
+	if err := exec.Command("tmux", append(tmuxArgs(), "has-session", "-t", name)...).Run(); err != nil {
 		return "", fmt.Errorf("tmux session not running: %s", name)
 	}
 
@@ -56,9 +56,8 @@ func PasteImage(name string, data []byte, ext string) (string, error) {
 	// Inject `<space><path>` into the session. -l = literal, no key
 	// interpretation. The leading space separates back-to-back pastes; an empty
 	// prompt with a leading space is harmless (Claude trims it).
-	out, err := exec.Command(
-		"tmux", "send-keys", "-l", "-t", name, " "+path,
-	).CombinedOutput()
+	args := append(tmuxArgs(), "send-keys", "-l", "-t", name, " "+path)
+	out, err := exec.Command("tmux", args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("tmux send-keys: %s: %s", err, strings.TrimSpace(string(out)))
 	}

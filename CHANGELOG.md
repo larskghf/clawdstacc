@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Dedicated tmux server socket (`tmux -L clawdstacc`)**. Clawdstacc no
+  longer touches your personal `~/.tmux.conf` or the default tmux server.
+  Its config is embedded in the binary, written once to
+  `~/.config/clawdstacc/tmux.conf`, and used only on the dedicated socket.
+  New `clawdstacc tmux <args>` subcommand wraps the right `-L … -f …` flags
+  for interactive use (e.g. `clawdstacc tmux attach -t <project>`).
 - **Homebrew install** as the recommended path:
   `brew tap larskghf/tap && brew install clawdstacc`. The formula pulls in
   `tmux` and `code-server` automatically and stashes the conf example under

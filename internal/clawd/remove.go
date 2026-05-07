@@ -48,7 +48,7 @@ func RemoveProject(cfg Config, name string) error {
 	}
 
 	// 3. Kill the tmux session if it's still around.
-	_ = exec.Command("tmux", "kill-session", "-t", name).Run()
+	_ = exec.Command("tmux", append(tmuxArgs(), "kill-session", "-t", name)...).Run()
 
 	// 4. Find the project path so we can clean up generated .vscode files.
 	//    If the user already deleted the project directory we just skip this.

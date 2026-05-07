@@ -13,6 +13,7 @@ Usage:
 Commands:
   setup        Render plists, register launchd agents, build templates
   status       CLI overview of every component
+  tmux         Wrapper around 'tmux -L clawdstacc -f <conf>' (attach/list/etc.)
   remove       Stop and remove a single project's launchd agent + generated files
   teardown     Stop and remove all clawdstacc launchd agents
   dashboard    Run the web dashboard in the foreground (launchd uses this)
@@ -69,6 +70,8 @@ func Main() {
 		cmdTeardown(args)
 	case "remove", "rm":
 		cmdRemove(args)
+	case "tmux":
+		cmdTmux(args)
 	case "status":
 		cmdStatus(args)
 	case "version":

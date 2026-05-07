@@ -64,15 +64,9 @@ Background: launchd starts services with a minimal environment — `~/.zshrc` is
 
 **a) `vscode-settings.json.tmpl` (deployed automatically by setup) sets `zsh -l -i` as the default profile** — the integrated terminal in code-server starts as a login shell, loads `.zprofile` and `.zshrc`, picks up your theme, plugins and aliases. This happens automatically.
 
-**b) Optional but recommended: drop in `~/.tmux.conf`** so *new* tmux windows (Ctrl+b c inside a session) also start as login shells:
+**b) tmux config is automatic now.** Clawdstacc spawns its sessions on a dedicated tmux server socket (`tmux -L clawdstacc`) using its own embedded config. New windows (Ctrl+b c) inside those sessions inherit `default-command "${SHELL} -l"` — login shells, your zsh setup loads. Your personal `~/.tmux.conf` is **not** touched and is **not** loaded into clawdstacc sessions.
 
-```bash
-cp ~/clawdstacc/tmux.conf.example ~/.tmux.conf
-# tweak as desired, then:
-tmux kill-server  # restart all sessions cleanly
-```
-
-(`kill-server` is fine because the launchd plists will respawn the sessions immediately, and `--continue` resumes the conversations.)
+To attach to a clawdstacc session by hand: `clawdstacc tmux attach -t <project>`.
 
 **Verify:** attach to a tmux session and check:
 

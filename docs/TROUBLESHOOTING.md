@@ -54,14 +54,18 @@ The classic "launchd env vs interactive shell" issue. launchd starts code-server
 
 ## Terminal in tmux session has no theme / no plugins
 
-The pane is currently running Claude — to get to a shell with your full env, open a new window with Ctrl+b c. That uses `default-command` from `~/.tmux.conf`. If you didn't drop in `tmux.conf.example` yet, the system-default shell is used (no login flag), so no theme/plugins.
-
-Fix:
+The pane is currently running Claude — to get to a shell with your full env, open a new window with Ctrl+b c. That uses `default-command` from clawdstacc's embedded tmux config (which sets `${SHELL} -l` so your zsh setup loads). If you upgraded from a pre-tmux-socket clawdstacc and your sessions still live on the default tmux socket, you may see the system shell instead of your login shell — finish the migration:
 
 ```bash
-cp ~/clawdstacc/tmux.conf.example ~/.tmux.conf
-tmux kill-server   # sessions get respawned by launchd with the new config
+# Re-run setup with the new binary (reads new plists, bootstraps on the dedicated socket)
+clawdstacc setup --conf ~/clawdstacc.conf
+
+# If you're attached to one of the project sessions, /exit Claude to let
+# launchd respawn it under the new socket, or kill manually:
+tmux kill-session -t <project>
 ```
+
+Inspect what got installed: `cat ~/.config/clawdstacc/tmux.conf`.
 
 Note: when Claude exits the pane closes and the session ends — by design, so launchd respawns a fresh Claude instance immediately. There is no "shell after Claude" fallback in the tmux pane anymore.
 

@@ -43,6 +43,14 @@ func cmdSetup(args []string) {
 		die("mkdir log dir: %v", err)
 	}
 
+	// Write the embedded tmux config to its on-disk location. Plists and
+	// the VSCode auto-attach task reference this file via -f, so it has to
+	// exist before any agent boots.
+	if err := writeTmuxConf(); err != nil {
+		die("write tmux conf: %v", err)
+	}
+	fmt.Printf("  %s wrote %s\n", green("✓"), tmuxConfPath())
+
 	// Resolve projects.
 	projects := ListProjects(cfg)
 	if len(projects) == 0 {
@@ -52,6 +60,31 @@ func cmdSetup(args []string) {
 	fmt.Println(blue("==> Projects"))
 	for _, p := range projects {
 		fmt.Printf("  • %s\n", green(filepath.Base(p)))
+	}
+
+	// Migration: kill stale sessions that were created on the user's default
+	// tmux socket by older clawdstacc versions (before we moved to
+	// -L clawdstacc). kill-session targets the default server so unrelated
+	// sessions on it are untouched.
+	//
+	// Self-exception: if we're running this from inside one of the project
+	// sessions, skip its kill — committing suicide mid-setup leaves launchd
+	// to respawn under the *old* plist before the loop has rendered the new
+	// one, and we end up in an oscillating reset loop.
+	ownSession := ""
+	if os.Getenv("TMUX") != "" {
+		if out, err := exec.Command("tmux", "display-message", "-p", "#{session_name}").Output(); err == nil {
+			ownSession = strings.TrimSpace(string(out))
+		}
+	}
+	for _, p := range projects {
+		name := ProjectName(p)
+		if name == ownSession {
+			fmt.Printf("  %s skipping legacy-socket cleanup for %q (you're attached to it — exit later to finish the migration)\n",
+				yellow("↻"), name)
+			continue
+		}
+		_ = exec.Command("tmux", "kill-session", "-t", name).Run()
 	}
 
 	// Per-project: render plist + .vscode (if code-server enabled).
@@ -208,7 +241,8 @@ func preflight(cfg Config) {
 	}
 }
 
-// projectVars returns the placeholder map used by claude.plist.tmpl.
+// projectVars returns the placeholder map used by claude.plist.tmpl and
+// vscode-tasks.json.tmpl.
 func projectVars(cfg Config, projectPath, name, home string) map[string]string {
 	return map[string]string{
 		"PROJECT_NAME":       name,
@@ -218,6 +252,8 @@ func projectVars(cfg Config, projectPath, name, home string) map[string]string {
 		"LOG_DIR":            cfg.LogDir,
 		"CLAUDE_CONTINUE":    cfg.ClaudeContinue,
 		"CLAUDE_EXTRA_FLAGS": cfg.ClaudeExtraFlags,
+		"TMUX_SOCKET":        tmuxSocket,
+		"TMUX_CONF":          tmuxConfPath(),
 	}
 }
 

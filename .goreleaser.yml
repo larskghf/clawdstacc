@@ -40,7 +40,6 @@ archives:
       - README.md
       - CHANGELOG.md
       - clawdstacc.conf.example
-      - tmux.conf.example
       - install.sh
       - docs/**/*
 

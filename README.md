@@ -216,6 +216,10 @@ Everything is one binary. Subcommands:
 # Re-render plists after editing the config (idempotent)
 ./bin/clawdstacc setup
 
+# Attach / list / kill clawdstacc tmux sessions (uses the dedicated socket)
+./bin/clawdstacc tmux ls
+./bin/clawdstacc tmux attach -t <project-name>
+
 # Stop and remove a single project (keeps the project dir + Claude history)
 ./bin/clawdstacc remove <project-name>
 

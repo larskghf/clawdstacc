@@ -13,6 +13,10 @@
       set -e
       export PATH="__BREW_PREFIX__/bin:__USER_HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 
+      # All tmux commands go through our dedicated socket + config so we
+      # never share state with the user's default-server tmux.
+      TMUX="tmux -L __TMUX_SOCKET__ -f __TMUX_CONF__"
+
       cd "__PROJECT_PATH__"
       mkdir -p .claude
 
@@ -31,11 +35,11 @@
       # exits, the pane closes, the session ends, the watcher loop below
       # returns, this script exits non-zero, and KeepAlive respawns it
       # with a fresh Claude process.
-      if ! tmux has-session -t __PROJECT_NAME__ 2>/dev/null; then
-        tmux new-session -d -s __PROJECT_NAME__ -c "__PROJECT_PATH__" "$CLAUDE_CMD"
-        # Make sure the pane really dies on exit (override any user
-        # `remain-on-exit on` in ~/.tmux.conf).
-        tmux set-option -t __PROJECT_NAME__ remain-on-exit off 2>/dev/null || true
+      if ! $TMUX has-session -t __PROJECT_NAME__ 2>/dev/null; then
+        $TMUX new-session -d -s __PROJECT_NAME__ -c "__PROJECT_PATH__" "$CLAUDE_CMD"
+        # Make sure the pane really dies on exit (override anything that
+        # might have set `remain-on-exit on`).
+        $TMUX set-option -t __PROJECT_NAME__ remain-on-exit off 2>/dev/null || true
         # Set the marker after a successful first start.
         touch .claude/.has-session
       fi
@@ -43,7 +47,7 @@
       # Stay in the foreground and watch the session.
       # If the session dies, exit with a non-zero status — KeepAlive will
       # respawn this script and recreate the session.
-      while tmux has-session -t __PROJECT_NAME__ 2>/dev/null; do
+      while $TMUX has-session -t __PROJECT_NAME__ 2>/dev/null; do
         sleep 10
       done
 
