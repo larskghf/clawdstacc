@@ -12,7 +12,7 @@ func TestClaudeProjectDir(t *testing.T) {
 	cases := []struct {
 		home, project, want string
 	}{
-		{"/Users/x", "/Users/x/_pawfect", "/Users/x/.claude/projects/-Users-x--pawfect"},
+		{"/Users/x", "/Users/x/_demo", "/Users/x/.claude/projects/-Users-x--demo"},
 		{"/Users/x", "/Users/x/work/foo", "/Users/x/.claude/projects/-Users-x-work-foo"},
 		{"/Users/x", "/Users/x/_a/.claude/worktrees/silly-lamport", "/Users/x/.claude/projects/-Users-x--a--claude-worktrees-silly-lamport"},
 	}

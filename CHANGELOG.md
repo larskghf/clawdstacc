@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - JSONL session-dir path-mangling: underscores are now correctly translated to
-  dashes (`/Users/larskghf/_pawfect` → `-Users-larskghf--pawfect`), so projects
+  dashes (`/Users/jane/_demo` → `-Users-jane--demo`), so projects
   with leading underscores are no longer reported as "no session yet"
 - "Open tool" detection no longer triggers on tail-window artefacts (a tool_use
   whose tool_result lives outside the read window is no longer flagged as open)

@@ -13,7 +13,7 @@ import (
 // Examples:
 //
 //	clawdstacc tmux ls                  → list our sessions
-//	clawdstacc tmux attach -t pawfect   → attach to a specific project
+//	clawdstacc tmux attach -t demo      → attach to a specific project
 //	clawdstacc tmux kill-session -t foo → kill a session
 //	clawdstacc tmux                     → bare tmux on our socket
 func cmdTmux(args []string) {

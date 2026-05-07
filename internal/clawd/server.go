@@ -307,7 +307,7 @@ func (s *Server) handleAPIRestart(w http.ResponseWriter, r *http.Request) {
 
 // handleCodeServerRedirect bounces to code-server. Two paths:
 //   - public (request is HTTPS) AND CODESERVER_PUBLIC_URL is configured →
-//     redirect there (e.g. https://code.kghf.io)
+//     redirect there (e.g. https://code.example.com)
 //   - else → LAN-style http://<request-host>:<bind-port>
 //
 // Detecting "public" via X-Forwarded-Proto rather than r.TLS, since CF Tunnel

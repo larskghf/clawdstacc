@@ -36,8 +36,8 @@ type SessionInfo struct {
 }
 
 // claudeProjectDir mirrors Claude Code's path-to-dir mangling: every
-// non-[a-zA-Z0-9-] char becomes '-'. /Users/larskghf/_pawfect →
-// -Users-larskghf--pawfect
+// non-[a-zA-Z0-9-] char becomes '-'. /Users/jane/_demo →
+// -Users-jane--demo
 var nonAlnumDash = regexp.MustCompile(`[^a-zA-Z0-9-]`)
 
 func claudeProjectDir(home, projectPath string) string {
