@@ -12,6 +12,8 @@ Usage:
 
 Commands:
   setup        Render plists, register launchd agents, build templates
+  reload       Re-render plists, restart only what changed, refresh dashboard
+                 (run after 'brew upgrade clawdstacc'; brew does this for you)
   status       CLI overview of every component
   tmux         Wrapper around 'tmux -L clawdstacc -f <conf>' (attach/list/etc.)
   remove       Stop and remove a single project's launchd agent + generated files
@@ -66,6 +68,8 @@ func Main() {
 		cmdDashboard(args)
 	case "setup":
 		cmdSetup(args)
+	case "reload":
+		cmdReload(args)
 	case "teardown":
 		cmdTeardown(args)
 	case "remove", "rm":

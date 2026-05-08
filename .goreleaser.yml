@@ -73,6 +73,12 @@ brews:
       # Stash the conf example under HOMEBREW_PREFIX/etc/clawdstacc/ so users
       # can copy it without hunting for the source tarball later.
       (etc/"clawdstacc").install "clawdstacc.conf.example"
+    post_install: |
+      # On `brew upgrade`, re-render plists, restart only the agents whose
+      # plist content actually changed, and kickstart the dashboard so its
+      # in-memory templates pick up the new binary. No-op on fresh installs
+      # (reload exits cleanly when no clawdstacc agents are installed yet).
+      system "#{bin}/clawdstacc", "reload" rescue nil
     test: |
       assert_match "clawdstacc", shell_output("#{bin}/clawdstacc version")
     caveats: |

@@ -54,9 +54,17 @@ LOG_DIR="$HOME/Library/Logs/clawdstacc"
 # false = always start a fresh session
 CLAUDE_CONTINUE="true"
 
-# Extra flags passed to claude. Useful e.g. for --dangerously-skip-permissions
-# if you want auto-approve (be careful — risky on production systems).
-# CLAUDE_EXTRA_FLAGS="--dangerously-skip-permissions"
+# Extra flags passed to claude. Useful for `--dangerously-skip-permissions`
+# when you want auto-approve (be careful — risky on production systems).
+#
+# When you do enable bypass mode, also pass `--permission-mode bypassPermissions`.
+# Without it, `--dangerously-skip-permissions` is honoured at session start but
+# `--continue` on respawn (and remote-control bridge reconnects) restore the
+# last-saved mode from JSONL — which often isn't bypass — and Claude then locks
+# bypass out of the shift+tab picker. The explicit `--permission-mode` flag
+# overrides the inherited mode on every start so bypass sticks.
+#
+# CLAUDE_EXTRA_FLAGS="--dangerously-skip-permissions --permission-mode bypassPermissions"
 CLAUDE_EXTRA_FLAGS=""
 
 # === Paths — adjust if Homebrew is not in /opt/homebrew ===
