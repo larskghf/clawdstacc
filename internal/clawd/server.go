@@ -164,9 +164,38 @@ func (s *Server) codeServerURL(_ any, projectPath string) string {
 	return "/cs-redirect?folder=" + url.QueryEscape(projectPath)
 }
 
-func (s *Server) renderCards(snap StatusSnapshot) (string, error) {
+// cardsView wraps a StatusSnapshot with the per-request paste target so the
+// `cards` template can mark the active card with the .paste-target class
+// server-side. Doing this client-side caused a heartbeat flicker every 2s
+// because htmx innerHTML-swaps the cards container on each SSE push and
+// new (un-classed) cards painted for a frame before JS re-applied the class.
+type cardsView struct {
+	StatusSnapshot
+	PasteTarget string
+}
+
+// pasteTargetCookie reads the user's chosen paste target out of the request.
+// JS writes this cookie whenever the dropdown or a code-server button changes
+// the target; server-side rendering reads it back so the .paste-target class
+// is in the HTML before the browser ever paints it.
+func pasteTargetCookie(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	c, err := r.Cookie("clawdstacc-paste-target")
+	if err != nil {
+		return ""
+	}
+	v, err := url.QueryUnescape(c.Value)
+	if err != nil {
+		return c.Value
+	}
+	return v
+}
+
+func (s *Server) renderCards(snap StatusSnapshot, target string) (string, error) {
 	var buf bytes.Buffer
-	if err := s.tmpl.ExecuteTemplate(&buf, "cards", snap); err != nil {
+	if err := s.tmpl.ExecuteTemplate(&buf, "cards", cardsView{snap, target}); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -270,8 +299,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	snap := CollectStatus(s.cfg)
+	view := cardsView{StatusSnapshot: snap, PasteTarget: pasteTargetCookie(r)}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tmpl.ExecuteTemplate(w, "index", snap); err != nil {
+	if err := s.tmpl.ExecuteTemplate(w, "index", view); err != nil {
 		log.Printf("template error: %v", err)
 	}
 }
@@ -346,8 +376,13 @@ func (s *Server) handleSSEStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Cookies on an EventSource are fixed at connect time. JS forces a
+	// reconnect when the user changes the paste target, so this captured
+	// value is good for the lifetime of the connection.
+	target := pasteTargetCookie(r)
+
 	// Initial push so the client sees fresh data immediately.
-	s.pushStatus(w, flusher)
+	s.pushStatus(w, flusher, target)
 
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
@@ -359,7 +394,7 @@ func (s *Server) handleSSEStatus(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:
-			s.pushStatus(w, flusher)
+			s.pushStatus(w, flusher, target)
 		case <-keepalive.C:
 			fmt.Fprintf(w, ": ping\n\n")
 			flusher.Flush()
@@ -367,9 +402,9 @@ func (s *Server) handleSSEStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) pushStatus(w http.ResponseWriter, flusher http.Flusher) {
+func (s *Server) pushStatus(w http.ResponseWriter, flusher http.Flusher, target string) {
 	snap := CollectStatus(s.cfg)
-	cards, err := s.renderCards(snap)
+	cards, err := s.renderCards(snap, target)
 	if err != nil {
 		log.Printf("render cards: %v", err)
 		return

@@ -31,7 +31,7 @@
 
 {{define "cards"}}
 {{range .Projects}}
-<div class="card {{cardClass .}}" id="card-{{.Name}}">
+<div class="card {{cardClass .}}{{if eq .Name $.PasteTarget}} paste-target{{end}}" id="card-{{.Name}}">
   <div class="card-head">
     <div class="card-name" title="{{.Name}}">
       <span class="name-dot"></span><span class="card-name-text">{{.Name}}</span>
@@ -42,7 +42,6 @@
       {{if .TmuxAlive}}<span class="b ok">tmux</span>{{else}}<span class="b err">no tmux</span>{{end}}
       {{if .ClaudeAlive}}<span class="b ok">claude</span>{{else if .AgentLoaded}}<span class="b warn">no claude</span>{{end}}
       {{if and .Session (eq .Session.PermissionMode "bypassPermissions")}}<span class="b warn" title="Permission mode: bypass">bypass</span>{{end}}
-      {{if and .Session .Session.OpenToolUse}}<span class="b tool">{{.Session.OpenToolUse}}</span>{{end}}
     </div>
   </div>
 

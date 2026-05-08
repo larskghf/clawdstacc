@@ -40,8 +40,6 @@
     --err-soft: rgba(239, 68, 68, 0.12);
     --info: #38bdf8;
     --info-soft: rgba(56, 189, 248, 0.12);
-
-    --shadow-glow: 0 0 0 1px rgba(168, 85, 247, 0.15), 0 8px 32px rgba(168, 85, 247, 0.12);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -125,20 +123,63 @@
   .paste-picker select option { background: var(--bg-soft); color: var(--text); }
   .paste-picker .hint { color: var(--muted); font-size: .68rem; }
   .card.paste-target {
-    border-color: rgba(34, 197, 94, 0.45);
-    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18), 0 8px 24px rgba(34, 197, 94, 0.08);
-    background: rgba(34, 197, 94, 0.025);
+    border-color: rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12);
+    background: rgba(34, 197, 94, 0.02);
   }
   .card.paste-target::after {
-    content: "PASTE TARGET";
-    position: absolute; top: -1px; right: 16px;
-    background: linear-gradient(135deg, #22c55e, #06b6d4);
+    content: "paste";
+    position: absolute; top: -1px; right: 14px;
+    background: rgba(34, 197, 94, 0.85);
     color: #fff;
-    font-size: .58rem; font-weight: 700;
-    letter-spacing: .08em;
-    padding: 3px 9px;
-    border-radius: 0 0 8px 8px;
+    font-size: .54rem; font-weight: 600;
+    letter-spacing: .05em;
+    padding: 2px 7px;
+    border-radius: 0 0 6px 6px;
     pointer-events: none;
+  }
+
+  /* === Confirm modal — replaces the native browser confirm() popup that
+        htmx fires for hx-confirm. Uses the platform <dialog> element so we
+        get proper modal semantics, ESC-to-cancel, and focus trap for free. */
+  .modal {
+    border: none;
+    border-radius: 14px;
+    background: var(--card);
+    color: var(--text);
+    max-width: 460px;
+    width: calc(100vw - 2rem);
+    padding: 1.4rem 1.6rem 1.2rem;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px var(--border);
+    font: inherit;
+    /* Center on screen — native <dialog> default centering is unreliable
+       across browsers when custom padding/sizing is set. */
+    inset: 0;
+    margin: auto;
+  }
+  .modal::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+  }
+  .modal[open] {
+    animation: modal-in .14s ease-out;
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+  }
+  .modal-title {
+    margin: 0 0 .55rem;
+    font-size: 1rem; font-weight: 650; letter-spacing: -0.01em;
+  }
+  .modal-msg {
+    margin: 0 0 1.25rem;
+    font-size: .85rem; line-height: 1.55;
+    color: var(--muted-strong);
+    white-space: pre-line;
+  }
+  .modal-actions {
+    display: flex; gap: .5rem; justify-content: flex-end;
   }
   .live-dot {
     width: 7px; height: 7px; border-radius: 50%;
@@ -208,15 +249,6 @@
     background: linear-gradient(180deg, rgba(255,255,255,0.025), transparent 40%);
     pointer-events: none; z-index: -1;
   }
-  .card:hover {
-    background: var(--card-hover);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
-  }
-  .card.running {
-    border-color: rgba(168, 85, 247, 0.3);
-    box-shadow: var(--shadow-glow);
-  }
   .card.dead { opacity: .55; }
   .card.setup {
     border-style: dashed;
@@ -273,17 +305,6 @@
   .b.warn { background: var(--warn-soft); color: #fcd34d; border-color: rgba(245,158,11,0.2); }
   .b.err  { background: var(--err-soft); color: #fca5a5; border-color: rgba(239,68,68,0.2); }
   .b.info { background: var(--info-soft); color: #7dd3fc; border-color: rgba(56,189,248,0.2); }
-  .b.tool {
-    background: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(236,72,153,0.15));
-    color: #f0abfc;
-    border-color: rgba(168,85,247,0.3);
-    font-weight: 600;
-  }
-  .b.tool::before {
-    content: ""; width: 5px; height: 5px; border-radius: 50%;
-    background: var(--acc-violet); box-shadow: 0 0 6px var(--acc-violet);
-    animation: pulse-dot 1.5s ease-in-out infinite;
-  }
 
   .meta-line {
     display: flex; justify-content: space-between; align-items: center;
@@ -446,7 +467,7 @@
 
   <div hx-ext="sse" sse-connect="/sse/status">
     <div class="stats" id="stats" sse-swap="stats" hx-swap="innerHTML">
-      {{template "stats" summary .}}
+      {{template "stats" summary .StatusSnapshot}}
     </div>
     <div class="cards" id="cards" sse-swap="cards" hx-swap="innerHTML">
       {{template "cards" .}}
@@ -459,6 +480,15 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<dialog class="modal" id="confirm-modal" aria-labelledby="confirm-title">
+  <h3 class="modal-title" id="confirm-title">Confirm</h3>
+  <p class="modal-msg" id="confirm-msg"></p>
+  <div class="modal-actions">
+    <button type="button" class="btn" id="confirm-cancel">Cancel</button>
+    <button type="button" class="btn" id="confirm-ok">Confirm</button>
+  </div>
+</dialog>
 
 <script>
   // Liveness derived from message receipt: any SSE message in the last 8s
@@ -507,14 +537,115 @@
     }
   });
 
+  // === Confirm modal — intercept htmx:confirm to replace native confirm() ===
+  const confirmModal  = document.getElementById("confirm-modal");
+  const confirmTitle  = document.getElementById("confirm-title");
+  const confirmMsg    = document.getElementById("confirm-msg");
+  const confirmOk     = document.getElementById("confirm-ok");
+  const confirmCancel = document.getElementById("confirm-cancel");
+
+  // Map api path → human-friendly title + confirm-button label.
+  const confirmPresets = {
+    setup:   { title: "Set up project",  ok: "Set up",  danger: false },
+    restart: { title: "Restart session", ok: "Restart", danger: false },
+    remove:  { title: "Remove agent",    ok: "Remove",  danger: true  },
+  };
+
+  let pendingConfirm = null;
+
+  document.body.addEventListener("htmx:confirm", (ev) => {
+    ev.preventDefault();
+    const path = ev.detail.path || "";
+    const m = path.match(/\/api\/(\w+)\//);
+    const preset = (m && confirmPresets[m[1]]) || { title: "Confirm", ok: "Confirm", danger: false };
+    confirmTitle.textContent = preset.title;
+    confirmMsg.textContent   = ev.detail.question || "";
+    confirmOk.textContent    = preset.ok;
+    confirmOk.classList.toggle("danger", preset.danger);
+    pendingConfirm = ev.detail;
+    confirmModal.showModal();
+    // Default focus on Cancel — safer for destructive actions.
+    confirmCancel.focus();
+  });
+
+  confirmOk.addEventListener("click", () => {
+    const d = pendingConfirm;
+    pendingConfirm = null;
+    confirmModal.close();
+    if (d) d.issueRequest(true);
+  });
+  confirmCancel.addEventListener("click", () => {
+    pendingConfirm = null;
+    confirmModal.close();
+  });
+  // ESC + backdrop click both fire `cancel` on <dialog>; clear pending state.
+  confirmModal.addEventListener("cancel", () => { pendingConfirm = null; });
+  confirmModal.addEventListener("click", (ev) => {
+    // Click on the backdrop (outside the dialog content) closes the modal.
+    if (ev.target === confirmModal) {
+      pendingConfirm = null;
+      confirmModal.close();
+    }
+  });
+
   // === Paste-target picker + page-level image paste ===
+  //
+  // Visual highlight (.paste-target class on the matching card) is rendered
+  // server-side: setTarget() writes a cookie, and the SSE handler reads it at
+  // connect time to thread `PasteTarget` through to the cards template. The
+  // class is therefore baked into every cards-payload htmx swaps in, no JS
+  // re-apply needed. Cookies are fixed for the lifetime of an EventSource —
+  // when the user changes target we reload the page so the server captures
+  // the new value.
+  //
+  // The JS below only manages the picker <select> (option list mirrors live
+  // cards) and the code-server-click shortcut.
   const STORAGE_KEY = "clawdstacc.pasteTarget";
   const targetSelect = document.getElementById("paste-target");
 
+  function getTarget() {
+    return localStorage.getItem(STORAGE_KEY) || "";
+  }
+  function setTarget(name) {
+    if (!name) return;
+    const prev = getTarget();
+    localStorage.setItem(STORAGE_KEY, name);
+    document.cookie = `clawdstacc-paste-target=${encodeURIComponent(name)};path=/;max-age=31536000;samesite=lax`;
+    if (name === prev) return;
+
+    // Move the visual highlight immediately on every card so the user sees
+    // the change before the next SSE push lands. Server-side rendering will
+    // re-confirm it once the new SSE connection (with the new cookie) opens.
+    document.querySelectorAll(".card[id^='card-']").forEach((c) => {
+      c.classList.toggle("paste-target", c.id === "card-" + name);
+    });
+
+    // Server reads the cookie at SSE connect time. To pick up the new value
+    // we tear down + re-initialise the htmx-sse element so a fresh
+    // EventSource opens with the updated cookie. Cleaner UX than a full
+    // page reload.
+    reconnectSSE();
+  }
+
+  function reconnectSSE() {
+    const wrapper = document.querySelector('[hx-ext~="sse"]');
+    if (!wrapper || typeof htmx === "undefined") return;
+    // htmx 1.9 stows internal state on a per-element property keyed
+    // "htmx-internal-data" — that's where the sse extension parks the
+    // EventSource. Closing + nulling lets htmx.process recreate it on the
+    // next pass with whatever cookies the document now has.
+    const data = wrapper["htmx-internal-data"];
+    if (data && data.sseEventSource) {
+      data.sseEventSource.close();
+      data.sseEventSource = null;
+      // initHash is the digest htmx uses to short-circuit re-init on the
+      // same element; clearing it forces a real re-process.
+      data.initHash = null;
+    }
+    htmx.process(wrapper);
+  }
+
   function refreshPasteTargetOptions() {
-    // Build the option list from the live cards in the DOM. Only include
-    // sessions where Claude is actually running (.card.ok / .card.running) —
-    // pasting to a dead session would just fail at the tmux check.
     const cards = document.querySelectorAll(".card[id^='card-']");
     const live = [];
     cards.forEach((c) => {
@@ -524,50 +655,52 @@
       }
     });
 
-    const previous = targetSelect.value || localStorage.getItem(STORAGE_KEY) || "";
-    targetSelect.innerHTML = "";
+    // Rebuild options off-screen and swap atomically — never leave the select
+    // empty (would race with anything that reads targetSelect.value).
+    const frag = document.createDocumentFragment();
     if (live.length === 0) {
       const opt = document.createElement("option");
       opt.value = ""; opt.disabled = true; opt.selected = true;
       opt.textContent = "no live sessions";
-      targetSelect.appendChild(opt);
-      applyTargetVisual();
-      return;
-    }
-    live.forEach((name) => {
-      const opt = document.createElement("option");
-      opt.value = name; opt.textContent = name;
-      targetSelect.appendChild(opt);
-    });
-    if (previous && live.includes(previous)) {
-      targetSelect.value = previous;
+      frag.appendChild(opt);
     } else {
-      targetSelect.value = live[0];
-      localStorage.setItem(STORAGE_KEY, live[0]);
+      live.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name; opt.textContent = name;
+        frag.appendChild(opt);
+      });
     }
-    applyTargetVisual();
+    targetSelect.replaceChildren(frag);
+
+    const stored = getTarget();
+    if (live.length > 0) {
+      if (stored && live.includes(stored)) {
+        targetSelect.value = stored;
+      } else {
+        // First-ever load with no stored target: pick the first live one and
+        // set it. Reload happens via setTarget so the server picks it up.
+        targetSelect.value = live[0];
+        if (!stored) setTarget(live[0]);
+      }
+    }
   }
 
-  function applyTargetVisual() {
-    document.querySelectorAll(".card.paste-target")
-      .forEach((c) => c.classList.remove("paste-target"));
-    const target = targetSelect.value;
-    if (target) {
-      const card = document.getElementById("card-" + target);
-      if (card) card.classList.add("paste-target");
-    }
-  }
+  targetSelect.addEventListener("change", () => setTarget(targetSelect.value));
 
-  targetSelect.addEventListener("change", () => {
-    if (targetSelect.value) {
-      localStorage.setItem(STORAGE_KEY, targetSelect.value);
-    }
-    applyTargetVisual();
+  // Click on a card's "code-server ↗" link → make that project the paste
+  // target. Mirrors the user's likely intent ("the project I'm about to open
+  // is the one I'll paste screenshots into").
+  document.addEventListener("click", (ev) => {
+    const link = ev.target.closest("a.btn[href]");
+    if (!link || !/code-server/i.test(link.textContent)) return;
+    const card = link.closest(".card[id^='card-']");
+    if (!card) return;
+    setTarget(card.id.replace(/^card-/, ""));
   });
 
-  // Re-populate / re-apply target visual after every SSE swap.
+  // Re-populate options after every SSE swap (live-session set may change).
   document.body.addEventListener("htmx:afterSwap", refreshPasteTargetOptions);
-  // Initial population (also covers the case where SSE never fires).
+  // Initial population.
   setTimeout(refreshPasteTargetOptions, 100);
 
   // Page-level paste handler: image-only, requires a target.

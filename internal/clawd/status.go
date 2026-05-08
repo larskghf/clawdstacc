@@ -100,8 +100,10 @@ func CollectStatus(cfg Config) StatusSnapshot {
 			Session:     LatestSession(home, p),
 		})
 	}
-	// Sort by recency: smallest "active … ago" first. Projects without a
-	// session sink to the bottom (alphabetical among themselves).
+	// Sort by recency: most-recently-active first. Projects with no JSONL
+	// session sink to the bottom (alphabetical among themselves). Cards
+	// visibly hopping around on each SSE push isn't great UX, but the
+	// "what was I just working on" question dominates here.
 	sort.SliceStable(rows, func(i, j int) bool {
 		return activitySortKey(rows[i]) < activitySortKey(rows[j])
 	})
