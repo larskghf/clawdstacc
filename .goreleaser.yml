@@ -22,9 +22,13 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      # Version vars live in the internal/clawd package, not main —
+      # cmd/clawdstacc/main.go is a thin shim into clawd.Main(). Targeting
+      # `main.version` here used to silently no-op and `clawdstacc version`
+      # always printed "dev / none / unknown".
+      - -X github.com/larskghf/clawdstacc/internal/clawd.version={{.Version}}
+      - -X github.com/larskghf/clawdstacc/internal/clawd.commit={{.Commit}}
+      - -X github.com/larskghf/clawdstacc/internal/clawd.date={{.Date}}
 
 archives:
   - id: clawdstacc
