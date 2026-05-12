@@ -231,6 +231,7 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/tunnel/config", s.handleAPITunnelConfig)
 	mux.HandleFunc("/api/tunnel/status", s.handleAPITunnelStatus)
 	mux.HandleFunc("/tunnel", s.handleTunnelWS)
+	mux.HandleFunc("/auth/cli", s.handleAuthCLI)
 	mux.HandleFunc("/sse/status", s.handleSSEStatus)
 	mux.HandleFunc("/cs-redirect", s.handleCodeServerRedirect)
 	mux.HandleFunc("/favicon.svg", s.handleIcon)

@@ -8,14 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Automatic Cloudflare Access login** in `clawdstacc tunnel`. When the
-  dashboard sits behind CF Access and no fresh cached token is available,
-  the CLI opens your browser at the CF login URL with a localhost callback,
-  catches the JWT after you authenticate, and persists it to
+- **Automatic browser login for `clawdstacc tunnel`** — works for *any*
+  reverse-proxy auth in front of the dashboard, not just CF Access.
+  Mechanism: the CLI opens a localhost callback, points the browser at the
+  new `/auth/cli` endpoint on the dashboard, and the endpoint mirrors back
+  whatever credentials the auth proxy passed to the origin — cookies
+  (oauth2-proxy / Authentik / Authelia / session-based), the
+  `Cf-Access-Jwt-Assertion` header (CF Access — converted to a
+  `CF_Authorization` cookie the edge accepts), or an `Authorization`
+  header (basic auth, bearer tokens). The bundle gets persisted to
   `~/.config/clawdstacc/tokens.json` (mode 0600, keyed by host, JWT `exp`
-  parsed for expiry). Subsequent invocations reuse the cached token until it
-  expires; expiry or server-side rejection re-triggers the browser flow.
-  No `cloudflared` CLI dependency, no manual cookie copying.
+  parsed when present) and replayed on subsequent WS dials. Cached
+  credentials survive restarts; expiry or server-side rejection re-triggers
+  the browser flow. The `cb` query parameter is restricted to loopback
+  addresses so a malicious link can't exfiltrate a logged-in user's session.
 
 - **Port-forwarding tunnel** for users behind a Cloudflare-Tunnel-only setup
   (or anywhere SSH isn't reachable). `clawdstacc tunnel <dashboard-url>` opens

@@ -12,11 +12,16 @@ import (
 	"time"
 )
 
-// tokenStoreEntry is what we persist per dashboard host. JWT is opaque from
-// our perspective — we only parse the `exp` claim to know when to re-auth.
+// tokenStoreEntry is what we persist per dashboard host: the bundle of
+// auth surfaces the server's `/auth/cli` endpoint handed us after the user
+// logged in interactively. We replay these verbatim on every subsequent
+// connection. Provider-agnostic by design — Cookie covers CF Access,
+// oauth2-proxy, Authentik, Authelia and friends; Authorization covers Basic
+// auth and bearer-token setups.
 type tokenStoreEntry struct {
-	JWT       string    `json:"jwt"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Cookie        string    `json:"cookie,omitempty"`
+	Authorization string    `json:"authorization,omitempty"`
+	ExpiresAt     time.Time `json:"expires_at,omitempty"`
 }
 
 // tokenStore mediates concurrent access to ~/.config/clawdstacc/tokens.json.
