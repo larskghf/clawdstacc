@@ -291,4 +291,3 @@ func (t *tunnelSession) write(frame []byte) error {
 	defer t.writeMu.Unlock()
 	return t.ws.WriteMessage(websocket.BinaryMessage, frame)
 }
-
