@@ -158,8 +158,8 @@
     margin: auto;
   }
   .modal::backdrop {
-    background: rgba(0, 0, 0, 0.55);
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(6px);
   }
   .modal[open] {
     animation: modal-in .14s ease-out;
@@ -211,7 +211,9 @@
     border-radius: 8px;
   }
   #tunnel-modal .port-row input[type="text"],
-  #tunnel-modal .port-row input[type="number"] {
+  #tunnel-modal .port-row input[type="number"],
+  #tunnel-modal .add-form input[type="text"],
+  #tunnel-modal .add-form input[type="number"] {
     font: inherit; font-size: .8rem;
     background: rgba(0,0,0,0.25);
     border: 1px solid var(--border);
@@ -219,6 +221,21 @@
     padding: .25rem .45rem;
     color: var(--text);
     min-width: 0;
+    outline: none;
+    transition: border-color .15s ease;
+  }
+  #tunnel-modal .add-form input[type="text"],
+  #tunnel-modal .add-form input[type="number"] {
+    padding: .45rem .7rem;
+    font-size: .82rem;
+  }
+  #tunnel-modal .port-row input::placeholder,
+  #tunnel-modal .add-form input::placeholder {
+    color: var(--muted);
+  }
+  #tunnel-modal .port-row input:focus,
+  #tunnel-modal .add-form input:focus {
+    border-color: rgba(34, 197, 94, 0.5);
   }
   #tunnel-modal .port-row input[type="checkbox"] {
     width: 14px; height: 14px; cursor: pointer; accent-color: var(--ok);
@@ -249,28 +266,42 @@
     margin: 0 0 1rem;
   }
   #tunnel-modal .cmd-box {
+    display: flex; align-items: center; gap: .5rem;
     background: rgba(0,0,0,0.35);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: .55rem .7rem;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: .72rem;
-    color: var(--text-soft);
+    padding: .55rem .55rem .55rem .8rem;
     margin: 0 0 .8rem;
+  }
+  #tunnel-modal .cmd-box #tunnel-cmd-text {
+    flex: 1 1 auto; min-width: 0;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .76rem;
+    color: var(--text-soft);
     word-break: break-all;
-    position: relative;
   }
   #tunnel-modal .cmd-box .copy-btn {
-    position: absolute; top: 6px; right: 6px;
+    flex: 0 0 auto;
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: .65rem;
+    border-radius: 6px;
+    padding: .4rem .85rem;
+    font: inherit; font-size: .76rem; font-weight: 500;
     color: var(--text-soft);
     cursor: pointer;
+    display: inline-flex; align-items: center; gap: .35rem;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
-  #tunnel-modal .cmd-box .copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+  #tunnel-modal .cmd-box .copy-btn::before {
+    content: "📋";
+    font-size: .85rem; line-height: 1;
+  }
+  #tunnel-modal .cmd-box .copy-btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  #tunnel-modal .cmd-box .copy-btn:active { transform: translateY(1px); }
   #tunnel-modal .section-label {
     font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
     color: var(--muted); margin: 0 0 .4rem;
@@ -625,8 +656,8 @@
 
   <p class="section-label">On your laptop</p>
   <div class="cmd-box" id="tunnel-cmd">
-    <button type="button" class="copy-btn" id="tunnel-cmd-copy">copy</button>
     <span id="tunnel-cmd-text">clawdstacc tunnel </span>
+    <button type="button" class="copy-btn" id="tunnel-cmd-copy">copy</button>
   </div>
 
   <div class="modal-actions">
