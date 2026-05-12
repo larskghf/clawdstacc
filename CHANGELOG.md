@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Cloudflare Access Service Token support** for `clawdstacc tunnel`. When
+  the target dashboard sits behind CF Access, pass credentials via env vars
+  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` (or the matching
+  `--cf-access-*` flags). The client sends `CF-Access-Client-Id` and
+  `CF-Access-Client-Secret` headers — no `cloudflared` CLI dependency, no
+  browser flow per session. A cheap pre-flight probe detects an Access
+  redirect and prints the Zero-Trust-dashboard setup steps instead of
+  retrying "bad handshake" forever.
+
+### Added (previously unreleased)
 - **Port-forwarding tunnel** for users behind a Cloudflare-Tunnel-only setup
   (or anywhere SSH isn't reachable). `clawdstacc tunnel <dashboard-url>` opens
   a WebSocket to `/tunnel`, fetches the dashboard-managed port list, and
