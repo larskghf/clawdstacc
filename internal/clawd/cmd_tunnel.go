@@ -29,33 +29,18 @@ import (
 // localhost:<port> on its side. Net result: laptop's localhost:N talks to
 // the dashboard host's localhost:N.
 //
-// Designed to work through whatever the dashboard already sits behind:
-//
-//   - plain HTTPS / LAN HTTP            → no extra auth
-//   - HTTP basic / cookie-based auth    → pass via --cookie 'k=v; k2=v2'
-//   - Cloudflare Access (Zero Trust)    → create a Service Token in the CF
-//     dashboard (one-time), pass via
-//     CF_ACCESS_CLIENT_ID + _SECRET env
-//     vars or the --cf-* flags below.
-//     No browser flow, no cloudflared
-//     CLI dependency.
+// Designed to work through whatever the dashboard already sits behind
+// (Cloudflare Tunnel + Access, plain HTTPS, LAN HTTP) — we just use the
+// browser's cookie jar via --cookie if needed.
 func cmdTunnel(args []string) {
 	fs := flag.NewFlagSet("tunnel", flag.ExitOnError)
 	addr := fs.String("listen", "127.0.0.1", "local address to bind forwarded ports to")
-	cookie := fs.String("cookie", "", "raw Cookie header value (e.g. for cookie-based auth)")
-	cfID := fs.String("cf-access-id", os.Getenv("CF_ACCESS_CLIENT_ID"),
-		"Cloudflare Access Service Token Client ID (or set CF_ACCESS_CLIENT_ID)")
-	cfSecret := fs.String("cf-access-secret", os.Getenv("CF_ACCESS_CLIENT_SECRET"),
-		"Cloudflare Access Service Token Client Secret (or set CF_ACCESS_CLIENT_SECRET)")
+	cookie := fs.String("cookie", "", "raw Cookie header value (e.g. for Cloudflare Access)")
 	if err := fs.Parse(args); err != nil {
 		die("flags: %v", err)
 	}
 	if fs.NArg() != 1 {
-		die("usage: clawdstacc tunnel [flags] <dashboard-url>\n\nFlags:\n%s",
-			"  --listen ADDR            local bind address (default 127.0.0.1)\n"+
-				"  --cookie 'k=v; …'        raw Cookie header for cookie-based auth\n"+
-				"  --cf-access-id ID        Cloudflare Access Service Token Client ID\n"+
-				"  --cf-access-secret SECRET  Cloudflare Access Service Token Client Secret")
+		die("usage: clawdstacc tunnel [--listen ADDR] [--cookie 'k=v; …'] <dashboard-url>")
 	}
 	base, err := url.Parse(fs.Arg(0))
 	if err != nil || base.Scheme == "" {
@@ -75,41 +60,12 @@ func cmdTunnel(args []string) {
 		cancel()
 	}()
 
-	auth := tunnelAuth{cookie: *cookie, cfClientID: *cfID, cfSecret: *cfSecret}
-
-	// Cheap pre-flight: if the dashboard sits behind Cloudflare Access and
-	// the caller didn't supply a Service Token, fail fast with a useful
-	// hint instead of looping on "bad handshake" forever.
-	if auth.cfClientID == "" && auth.cfSecret == "" {
-		if accessHost := probeCloudflareAccess(ctx, base); accessHost != "" {
-			msg := strings.Join([]string{
-				"Cloudflare Access is in front of " + base.String() + " (" + accessHost + ").",
-				"",
-				"Create a Service Token (one-time, in the CF Zero Trust dashboard):",
-				"  1. Zero Trust → Access → Service Auth → Create Service Token",
-				"  2. Add an Access policy on this app: Include → Service Auth → <your token>",
-				"",
-				"Then pass the credentials to clawdstacc, either as flags:",
-				"  clawdstacc tunnel --cf-access-id <id> --cf-access-secret <secret> " + base.String(),
-				"",
-				"or as env vars (recommended — put them in your shell rc):",
-				"  export CF_ACCESS_CLIENT_ID=<id>",
-				"  export CF_ACCESS_CLIENT_SECRET=<secret>",
-				"  clawdstacc tunnel " + base.String(),
-			}, "\n")
-			die("%s", msg)
-		}
-	}
-
 	fmt.Printf("%s Connecting to %s\n", blue("==>"), base.String())
-	if auth.cfClientID != "" {
-		fmt.Printf("%s Using Cloudflare Access Service Token\n", blue("·"))
-	}
 
 	// Reconnect loop. Backs off exponentially up to 30s on repeated failure.
 	backoff := time.Second
 	for ctx.Err() == nil {
-		err := runTunnelClient(ctx, base, *addr, auth)
+		err := runTunnelClient(ctx, base, *addr, *cookie)
 		if ctx.Err() != nil {
 			break
 		}
@@ -126,60 +82,7 @@ func cmdTunnel(args []string) {
 	fmt.Println(green("✓ Done."))
 }
 
-// tunnelAuth bundles the optional credentials we send on the WS handshake.
-type tunnelAuth struct {
-	cookie     string // raw "Cookie:" header value
-	cfClientID string // Cloudflare Access Service Token Client ID
-	cfSecret   string // Cloudflare Access Service Token Client Secret
-}
-
-func (a tunnelAuth) apply(h http.Header) {
-	if a.cookie != "" {
-		h.Set("Cookie", a.cookie)
-	}
-	if a.cfClientID != "" {
-		h.Set("CF-Access-Client-Id", a.cfClientID)
-	}
-	if a.cfSecret != "" {
-		h.Set("CF-Access-Client-Secret", a.cfSecret)
-	}
-}
-
-// probeCloudflareAccess does a non-following GET against the base URL and
-// returns the cloudflareaccess.com hostname if Access is intercepting (302
-// → <team>.cloudflareaccess.com/cdn-cgi/access/login/…). Empty string means
-// either Access isn't in front, the probe failed, or the redirect points
-// somewhere else.
-func probeCloudflareAccess(ctx context.Context, base *url.URL) string {
-	c := &http.Client{
-		Timeout: 5 * time.Second,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
-	if err != nil {
-		return ""
-	}
-	resp, err := c.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusSeeOther {
-		return ""
-	}
-	loc, err := resp.Location()
-	if err != nil {
-		return ""
-	}
-	if !strings.HasSuffix(loc.Hostname(), ".cloudflareaccess.com") {
-		return ""
-	}
-	return loc.Hostname()
-}
-
-func runTunnelClient(ctx context.Context, base *url.URL, listenAddr string, auth tunnelAuth) error {
+func runTunnelClient(ctx context.Context, base *url.URL, listenAddr, cookieHdr string) error {
 	wsURL := *base
 	switch base.Scheme {
 	case "http":
@@ -190,7 +93,9 @@ func runTunnelClient(ctx context.Context, base *url.URL, listenAddr string, auth
 	wsURL.Path = strings.TrimRight(wsURL.Path, "/") + "/tunnel"
 
 	hdr := http.Header{}
-	auth.apply(hdr)
+	if cookieHdr != "" {
+		hdr.Set("Cookie", cookieHdr)
+	}
 	dialer := *websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second
 	ws, _, err := dialer.DialContext(ctx, wsURL.String(), hdr)
