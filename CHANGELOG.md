@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Disable code-server's auto-port-forwarding** in the deployed per-project
+  `.vscode/settings.json`. The "A service is listening on port X — forward
+  it?" prompts that VS Code/code-server pops up every time a dev server
+  starts are noise when you already have clawdstacc's own tunnel managing
+  forwards. New keys: `remote.autoForwardPorts: false`,
+  `remote.autoForwardPortsSource: "off"`, `remote.restoreForwardedPorts:
+  false`.
+- **`clawdstacc reload` now also re-renders `.vscode/settings.json` and
+  `tasks.json`** for every project, so embedded-template changes (like
+  the one above) propagate after a `brew upgrade` without a separate
+  `clawdstacc setup` step.
+
 ### Added
 - **Automatic browser login for `clawdstacc tunnel`** — works for *any*
   reverse-proxy auth in front of the dashboard, not just CF Access.

@@ -75,6 +75,21 @@ func cmdReload(args []string) {
 			continue
 		}
 		plists = append(plists, rendered{path: dst, content: []byte(content)})
+
+		// .vscode/settings.json + tasks.json — re-render so embedded template
+		// changes (new keys, fixed paths) propagate after a brew upgrade
+		// without requiring a manual `clawdstacc setup`.
+		if cfg.EnableCodeServer {
+			vscodeDir := filepath.Join(p, ".vscode")
+			_ = os.MkdirAll(vscodeDir, 0o755)
+			vars := map[string]string{
+				"PROJECT_NAME": name,
+				"TMUX_SOCKET":  tmuxSocket,
+				"TMUX_CONF":    tmuxConfPath(),
+			}
+			writeIfMissingOrOurs(filepath.Join(vscodeDir, "tasks.json"), "vscode-tasks.json.tmpl", vars, "Attach Claude (tmux)")
+			writeIfMissingOrOurs(filepath.Join(vscodeDir, "settings.json"), "vscode-settings.json.tmpl", vars, "tmux-claude")
+		}
 	}
 
 	if cfg.EnableCodeServer {
