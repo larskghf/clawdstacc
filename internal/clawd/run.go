@@ -16,6 +16,8 @@ Commands:
                  (run after 'brew upgrade clawdstacc'; brew does this for you)
   status       CLI overview of every component
   tmux         Wrapper around 'tmux -L clawdstacc -f <conf>' (attach/list/etc.)
+  tunnel       Connect to a remote dashboard and forward its configured ports
+                 to your local machine (e.g. 'clawdstacc tunnel https://...')
   remove       Stop and remove a single project's launchd agent + generated files
   teardown     Stop and remove all clawdstacc launchd agents
   dashboard    Run the web dashboard in the foreground (launchd uses this)
@@ -76,6 +78,8 @@ func Main() {
 		cmdRemove(args)
 	case "tmux":
 		cmdTmux(args)
+	case "tunnel":
+		cmdTunnel(args)
 	case "status":
 		cmdStatus(args)
 	case "version":

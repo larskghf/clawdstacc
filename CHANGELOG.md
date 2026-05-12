@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Port-forwarding tunnel** for users behind a Cloudflare-Tunnel-only setup
+  (or anywhere SSH isn't reachable). `clawdstacc tunnel <dashboard-url>` opens
+  a WebSocket to `/tunnel`, fetches the dashboard-managed port list, and
+  forwards every enabled port to the client's localhost. New "🔌 tunnel"
+  modal in the dashboard manages the port list (add/edit/toggle/delete),
+  shows connected-client count, and renders a copy-able client invocation.
+  Config changes pushed live to active clients over the same WS — no client
+  restart needed. Uses the dashboard's existing HTTPS endpoint, so it rides
+  whatever auth (Cloudflare Access, basic, none) is already in front.
+
 - **Auto-bootstrap of `clawdstacc.conf`**. First `clawdstacc setup` run with
   no config writes the bundled example to `~/.config/clawdstacc/clawdstacc.conf`
   and exits, so users can review before the second run renders plists.

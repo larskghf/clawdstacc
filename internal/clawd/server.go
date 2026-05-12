@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -18,12 +19,22 @@ import (
 var webFS embed.FS
 
 type Server struct {
-	cfg  Config
-	tmpl *template.Template
+	cfg    Config
+	tmpl   *template.Template
+	tunnel *TunnelStore
+	// Live count of active tunnel clients connected via /tunnel WebSocket —
+	// the dashboard reads this for the "1 client connected" status.
+	tunnelClients atomic.Int64
 }
 
 func NewServer(cfg Config) *Server {
 	s := &Server{cfg: cfg}
+	if ts, err := LoadTunnelStore(); err == nil {
+		s.tunnel = ts
+	} else {
+		log.Printf("tunnel: load config: %v", err)
+		s.tunnel = &TunnelStore{path: tunnelConfigPath()}
+	}
 	funcs := template.FuncMap{
 		"cardClass":     cardClass,
 		"activeLabel":   activeLabel,
@@ -217,6 +228,9 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/setup/", s.handleAPISetup)
 	mux.HandleFunc("/api/remove/", s.handleAPIRemove)
 	mux.HandleFunc("/api/paste/", s.handleAPIPaste)
+	mux.HandleFunc("/api/tunnel/config", s.handleAPITunnelConfig)
+	mux.HandleFunc("/api/tunnel/status", s.handleAPITunnelStatus)
+	mux.HandleFunc("/tunnel", s.handleTunnelWS)
 	mux.HandleFunc("/sse/status", s.handleSSEStatus)
 	mux.HandleFunc("/cs-redirect", s.handleCodeServerRedirect)
 	mux.HandleFunc("/favicon.svg", s.handleIcon)

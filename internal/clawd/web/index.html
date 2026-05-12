@@ -181,6 +181,117 @@
   .modal-actions {
     display: flex; gap: .5rem; justify-content: flex-end;
   }
+  /* Tunnel modal is wider — port list lives here. */
+  #tunnel-modal { max-width: 580px; }
+  #tunnel-modal .tunnel-status {
+    font-size: .75rem; color: var(--muted-strong);
+    margin: 0 0 1rem;
+    display: flex; align-items: center; gap: .4rem;
+  }
+  #tunnel-modal .tunnel-status .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); display: inline-block;
+  }
+  #tunnel-modal .tunnel-status.connected .dot {
+    background: var(--ok); box-shadow: 0 0 6px var(--ok);
+  }
+  #tunnel-modal .port-list {
+    display: flex; flex-direction: column; gap: .35rem;
+    margin: 0 0 .9rem;
+    max-height: 40vh; overflow-y: auto;
+  }
+  #tunnel-modal .port-row {
+    display: grid;
+    grid-template-columns: auto 4.5rem 1fr auto;
+    gap: .5rem;
+    align-items: center;
+    padding: .4rem .55rem;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  #tunnel-modal .port-row input[type="text"],
+  #tunnel-modal .port-row input[type="number"] {
+    font: inherit; font-size: .8rem;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: .25rem .45rem;
+    color: var(--text);
+    min-width: 0;
+  }
+  #tunnel-modal .port-row input[type="checkbox"] {
+    width: 14px; height: 14px; cursor: pointer; accent-color: var(--ok);
+  }
+  #tunnel-modal .port-row .port-num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    text-align: center;
+  }
+  #tunnel-modal .port-row .del {
+    background: transparent; border: 0;
+    color: var(--muted); cursor: pointer;
+    padding: 2px 6px; border-radius: 4px;
+    font-size: 1rem; line-height: 1;
+  }
+  #tunnel-modal .port-row .del:hover { color: #fca5a5; background: var(--err-soft); }
+  #tunnel-modal .port-row.disabled {
+    opacity: .55;
+  }
+  #tunnel-modal .empty {
+    text-align: center; padding: 1.2rem;
+    color: var(--muted); font-size: .8rem; font-style: italic;
+    border: 1px dashed var(--border); border-radius: 8px;
+  }
+  #tunnel-modal .add-form {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr auto;
+    gap: .5rem;
+    margin: 0 0 1rem;
+  }
+  #tunnel-modal .cmd-box {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: .55rem .7rem;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .72rem;
+    color: var(--text-soft);
+    margin: 0 0 .8rem;
+    word-break: break-all;
+    position: relative;
+  }
+  #tunnel-modal .cmd-box .copy-btn {
+    position: absolute; top: 6px; right: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: .65rem;
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+  #tunnel-modal .cmd-box .copy-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+  #tunnel-modal .section-label {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin: 0 0 .4rem;
+  }
+  .tunnel-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 99px;
+    padding: .3rem .65rem;
+    color: var(--muted-strong);
+    font: inherit; font-size: .74rem;
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: .35rem;
+    transition: border-color .2s ease, color .2s ease;
+  }
+  .tunnel-btn:hover { border-color: var(--border-strong); color: var(--text); }
+  .tunnel-btn .badge {
+    background: var(--ok-soft); color: #86efac;
+    border: 1px solid rgba(34,197,94,0.2);
+    border-radius: 99px; padding: 0 5px; font-size: .62rem; font-weight: 600;
+  }
   .live-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: #444; transition: all .25s ease;
@@ -459,6 +570,10 @@
         <option value="" disabled selected>—</option>
       </select>
     </div>
+    <button type="button" class="tunnel-btn" id="tunnel-btn"
+            title="Forward dashboard-host ports to your local machine">
+      🔌 tunnel<span class="badge" id="tunnel-client-badge" hidden>0</span>
+    </button>
     <div class="live-indicator">
       <span class="live-dot" id="live-dot"></span>
       <span id="live-text">connecting…</span>
@@ -487,6 +602,35 @@
   <div class="modal-actions">
     <button type="button" class="btn" id="confirm-cancel">Cancel</button>
     <button type="button" class="btn" id="confirm-ok">Confirm</button>
+  </div>
+</dialog>
+
+<dialog class="modal" id="tunnel-modal" aria-labelledby="tunnel-title">
+  <h3 class="modal-title" id="tunnel-title">Tunnel</h3>
+
+  <div class="tunnel-status" id="tunnel-status">
+    <span class="dot"></span>
+    <span id="tunnel-clients-text">no clients connected</span>
+  </div>
+
+  <p class="section-label">Forward these ports</p>
+  <div class="port-list" id="port-list"></div>
+
+  <p class="section-label">Add port</p>
+  <form class="add-form" id="port-add-form">
+    <input type="number" name="port" placeholder="3000" min="1" max="65535" required>
+    <input type="text" name="label" placeholder="label (optional)">
+    <button type="submit" class="btn">Add</button>
+  </form>
+
+  <p class="section-label">On your laptop</p>
+  <div class="cmd-box" id="tunnel-cmd">
+    <button type="button" class="copy-btn" id="tunnel-cmd-copy">copy</button>
+    <span id="tunnel-cmd-text">clawdstacc tunnel </span>
+  </div>
+
+  <div class="modal-actions">
+    <button type="button" class="btn" id="tunnel-close">Close</button>
   </div>
 </dialog>
 
@@ -702,6 +846,156 @@
   document.body.addEventListener("htmx:afterSwap", refreshPasteTargetOptions);
   // Initial population.
   setTimeout(refreshPasteTargetOptions, 100);
+
+  // === Tunnel admin modal ===
+  //
+  // Reads /api/tunnel/config + /api/tunnel/status, lets the user edit the
+  // port list, and shows a copy-able client invocation. Lives entirely in
+  // its own <dialog> so it doesn't collide with the SSE swap surface — no
+  // htmx, just fetch.
+  const tunnelBtn      = document.getElementById("tunnel-btn");
+  const tunnelModal    = document.getElementById("tunnel-modal");
+  const tunnelClose    = document.getElementById("tunnel-close");
+  const portList       = document.getElementById("port-list");
+  const portAddForm    = document.getElementById("port-add-form");
+  const tunnelStatus   = document.getElementById("tunnel-status");
+  const tunnelClientsTxt = document.getElementById("tunnel-clients-text");
+  const tunnelBadge    = document.getElementById("tunnel-client-badge");
+  const tunnelCmdText  = document.getElementById("tunnel-cmd-text");
+  const tunnelCmdCopy  = document.getElementById("tunnel-cmd-copy");
+
+  let tunnelCfg = { ports: [] };
+  let tunnelClientsCount = 0;
+  let tunnelStatusTimer = null;
+
+  function renderTunnelCmd() {
+    tunnelCmdText.textContent = `clawdstacc tunnel ${location.origin}`;
+  }
+
+  function renderPortList() {
+    portList.innerHTML = "";
+    const ports = (tunnelCfg.ports || []).slice().sort((a, b) => a.port - b.port);
+    if (ports.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "no ports configured yet — add one below";
+      portList.appendChild(empty);
+      return;
+    }
+    for (const p of ports) {
+      const row = document.createElement("div");
+      row.className = "port-row" + (p.enabled ? "" : " disabled");
+      row.innerHTML = `
+        <input type="checkbox" ${p.enabled ? "checked" : ""}>
+        <div class="port-num">${p.port}</div>
+        <input type="text" value="${(p.label || "").replace(/"/g, "&quot;")}" placeholder="label">
+        <button type="button" class="del" title="Remove">×</button>
+      `;
+      const [cb, _num, labelIn, del] = row.children;
+      cb.addEventListener("change", () => { p.enabled = cb.checked; saveTunnelCfg(); });
+      labelIn.addEventListener("change", () => { p.label = labelIn.value; saveTunnelCfg(); });
+      del.addEventListener("click", () => {
+        tunnelCfg.ports = tunnelCfg.ports.filter((x) => x.port !== p.port);
+        saveTunnelCfg();
+      });
+      portList.appendChild(row);
+    }
+  }
+
+  async function loadTunnelCfg() {
+    try {
+      const r = await fetch("/api/tunnel/config");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      tunnelCfg = await r.json();
+      if (!Array.isArray(tunnelCfg.ports)) tunnelCfg.ports = [];
+      renderPortList();
+    } catch (e) {
+      toast("tunnel config load failed: " + e, "err");
+    }
+  }
+
+  async function saveTunnelCfg() {
+    try {
+      const r = await fetch("/api/tunnel/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(tunnelCfg),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      tunnelCfg = await r.json();
+      renderPortList();
+    } catch (e) {
+      toast("tunnel save failed: " + e, "err");
+    }
+  }
+
+  async function loadTunnelStatus() {
+    try {
+      const r = await fetch("/api/tunnel/status");
+      const d = await r.json();
+      tunnelClientsCount = d.clients || 0;
+    } catch {
+      tunnelClientsCount = 0;
+    }
+    if (tunnelClientsCount > 0) {
+      tunnelStatus.classList.add("connected");
+      tunnelClientsTxt.textContent =
+        tunnelClientsCount === 1 ? "1 client connected"
+        : tunnelClientsCount + " clients connected";
+      tunnelBadge.hidden = false;
+      tunnelBadge.textContent = tunnelClientsCount;
+    } else {
+      tunnelStatus.classList.remove("connected");
+      tunnelClientsTxt.textContent = "no clients connected";
+      tunnelBadge.hidden = true;
+    }
+  }
+
+  portAddForm.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(portAddForm);
+    const port = parseInt(fd.get("port"), 10);
+    if (!port || port < 1 || port > 65535) return;
+    if ((tunnelCfg.ports || []).some((p) => p.port === port)) {
+      toast("port " + port + " already in list", "err");
+      return;
+    }
+    tunnelCfg.ports = (tunnelCfg.ports || []).concat([{
+      port, label: String(fd.get("label") || ""), enabled: true,
+    }]);
+    saveTunnelCfg();
+    portAddForm.reset();
+  });
+
+  tunnelBtn.addEventListener("click", async () => {
+    renderTunnelCmd();
+    await Promise.all([loadTunnelCfg(), loadTunnelStatus()]);
+    tunnelModal.showModal();
+    // While the modal is open, poll status every 3s so the "connected"
+    // indicator follows live state without manual refresh.
+    tunnelStatusTimer = setInterval(loadTunnelStatus, 3000);
+  });
+  function closeTunnelModal() {
+    tunnelModal.close();
+    if (tunnelStatusTimer) { clearInterval(tunnelStatusTimer); tunnelStatusTimer = null; }
+  }
+  tunnelClose.addEventListener("click", closeTunnelModal);
+  tunnelModal.addEventListener("close", () => {
+    if (tunnelStatusTimer) { clearInterval(tunnelStatusTimer); tunnelStatusTimer = null; }
+  });
+  tunnelModal.addEventListener("click", (ev) => { if (ev.target === tunnelModal) closeTunnelModal(); });
+
+  tunnelCmdCopy.addEventListener("click", () => {
+    navigator.clipboard?.writeText(tunnelCmdText.textContent.trim()).then(
+      () => toast("copied", "ok"),
+      () => toast("copy failed", "err"),
+    );
+  });
+
+  // Header badge shows the connected count even when modal is closed,
+  // refreshed once a minute (cheap).
+  loadTunnelStatus();
+  setInterval(loadTunnelStatus, 60_000);
 
   // Page-level paste handler: image-only, requires a target.
   window.addEventListener("paste", async (ev) => {
