@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Automatic Cloudflare Access login** in `clawdstacc tunnel`. When the
+  dashboard sits behind CF Access and no fresh cached token is available,
+  the CLI opens your browser at the CF login URL with a localhost callback,
+  catches the JWT after you authenticate, and persists it to
+  `~/.config/clawdstacc/tokens.json` (mode 0600, keyed by host, JWT `exp`
+  parsed for expiry). Subsequent invocations reuse the cached token until it
+  expires; expiry or server-side rejection re-triggers the browser flow.
+  No `cloudflared` CLI dependency, no manual cookie copying.
+
 - **Port-forwarding tunnel** for users behind a Cloudflare-Tunnel-only setup
   (or anywhere SSH isn't reachable). `clawdstacc tunnel <dashboard-url>` opens
   a WebSocket to `/tunnel`, fetches the dashboard-managed port list, and

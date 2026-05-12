@@ -29,13 +29,15 @@ import (
 // localhost:<port> on its side. Net result: laptop's localhost:N talks to
 // the dashboard host's localhost:N.
 //
-// Designed to work through whatever the dashboard already sits behind
-// (Cloudflare Tunnel + Access, plain HTTPS, LAN HTTP) — we just use the
-// browser's cookie jar via --cookie if needed.
+// Auth is auto-detected: if a Cloudflare Access challenge sits in front of
+// the dashboard and we don't have a fresh cached token, the browser opens
+// for the user to log in once (az-login-style); the resulting JWT is
+// persisted under ~/.config/clawdstacc/tokens.json and reused until expiry.
+// Plain HTTPS / LAN / cookie-based setups work as before via --cookie.
 func cmdTunnel(args []string) {
 	fs := flag.NewFlagSet("tunnel", flag.ExitOnError)
 	addr := fs.String("listen", "127.0.0.1", "local address to bind forwarded ports to")
-	cookie := fs.String("cookie", "", "raw Cookie header value (e.g. for Cloudflare Access)")
+	cookie := fs.String("cookie", "", "raw Cookie header value (advanced — when you already have a session cookie)")
 	if err := fs.Parse(args); err != nil {
 		die("flags: %v", err)
 	}
@@ -60,14 +62,35 @@ func cmdTunnel(args []string) {
 		cancel()
 	}()
 
+	tokens := loadTokenStore()
+
+	// First connect — may trigger an interactive login flow if needed.
+	jwt, err := ensureTunnelAuth(ctx, base, *cookie, tokens)
+	if err != nil {
+		die("%v", err)
+	}
+
 	fmt.Printf("%s Connecting to %s\n", blue("==>"), base.String())
 
 	// Reconnect loop. Backs off exponentially up to 30s on repeated failure.
+	// We refresh the JWT (if it has expired) before each attempt.
 	backoff := time.Second
 	for ctx.Err() == nil {
-		err := runTunnelClient(ctx, base, *addr, *cookie)
+		err := runTunnelClient(ctx, base, *addr, *cookie, jwt)
 		if ctx.Err() != nil {
 			break
+		}
+		// If the dial looks like the token went stale (rare but possible if
+		// CF rotates keys), drop the cached token and re-auth.
+		if isAuthFailure(err) {
+			fmt.Printf("%s Auth rejected by server — clearing cached token and re-logging in\n", yellow("·"))
+			_ = tokens.Delete(base.Host)
+			jwt, err = ensureTunnelAuth(ctx, base, *cookie, tokens)
+			if err != nil {
+				fmt.Printf("%s %v\n", red("✗"), err)
+				return
+			}
+			continue
 		}
 		fmt.Printf("%s Connection lost: %v — retrying in %s\n", yellow("·"), err, backoff)
 		select {
@@ -82,7 +105,109 @@ func cmdTunnel(args []string) {
 	fmt.Println(green("✓ Done."))
 }
 
-func runTunnelClient(ctx context.Context, base *url.URL, listenAddr, cookieHdr string) error {
+// ensureTunnelAuth returns the JWT to use for this host, running an
+// interactive login flow if needed. Returns empty string with nil error when
+// no auth is required (plain LAN dashboard) — caller should still try the
+// dial without any token.
+func ensureTunnelAuth(ctx context.Context, base *url.URL, cookieHdr string, tokens *tokenStore) (string, error) {
+	// If the caller passed a raw cookie, they're doing it manually — respect
+	// that and skip the auto flow entirely.
+	if cookieHdr != "" {
+		return "", nil
+	}
+
+	// Cached token still valid? Use it without a network round-trip.
+	if e, ok := tokens.Get(base.Host); ok {
+		return e.JWT, nil
+	}
+
+	// Quick probe: is there an auth challenge in front, and is it one we
+	// know how to handle?
+	kind := probeAuthChallenge(ctx, base)
+	switch kind {
+	case authNone:
+		return "", nil
+	case authCloudflareAccess:
+		fmt.Printf("%s Cloudflare Access detected, starting login flow…\n", blue("==>"))
+		jwt, err := cfAccessLogin(ctx, base)
+		if err != nil {
+			return "", fmt.Errorf("login: %w", err)
+		}
+		entry := tokenStoreEntry{JWT: jwt, ExpiresAt: jwtExpiry(jwt)}
+		if err := tokens.Put(base.Host, entry); err != nil {
+			// Non-fatal — we can still use the token, just won't be cached.
+			fmt.Printf("%s couldn't persist token: %v\n", yellow("·"), err)
+		}
+		return jwt, nil
+	case authUnknown:
+		return "", fmt.Errorf("authentication required at %s but the provider isn't supported yet.\n"+
+			"Workaround: log in in your browser, copy the session cookie, and re-run with --cookie",
+			base.String())
+	}
+	return "", nil
+}
+
+type authKind int
+
+const (
+	authNone authKind = iota
+	authCloudflareAccess
+	authUnknown
+)
+
+// probeAuthChallenge does a no-follow GET on the dashboard root and
+// classifies the response into one of authNone / authCloudflareAccess /
+// authUnknown. Used as a cheap pre-flight before either trying the WS dial
+// (when no auth needed) or kicking off the interactive login flow.
+func probeAuthChallenge(ctx context.Context, base *url.URL) authKind {
+	c := &http.Client{
+		Timeout: 5 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base.String(), nil)
+	if err != nil {
+		return authNone
+	}
+	resp, err := c.Do(req)
+	if err != nil {
+		// Network error — let the actual dial bubble it up with a better
+		// message rather than guessing.
+		return authNone
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		return authNone
+	}
+	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther {
+		if loc, err := resp.Location(); err == nil {
+			if strings.HasSuffix(loc.Hostname(), ".cloudflareaccess.com") {
+				return authCloudflareAccess
+			}
+		}
+		return authUnknown
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return authUnknown
+	}
+	return authNone
+}
+
+// isAuthFailure tells us when an error from the dial looks like the server
+// rejecting our credentials (vs. a transient network blip we should retry).
+// gorilla/websocket surfaces these as "bad handshake" plus an HTTP response
+// embedded in the error string.
+func isAuthFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "bad handshake") && (strings.Contains(s, "401") || strings.Contains(s, "403"))
+}
+
+func runTunnelClient(ctx context.Context, base *url.URL, listenAddr, cookieHdr, jwt string) error {
 	wsURL := *base
 	switch base.Scheme {
 	case "http":
@@ -95,6 +220,11 @@ func runTunnelClient(ctx context.Context, base *url.URL, listenAddr, cookieHdr s
 	hdr := http.Header{}
 	if cookieHdr != "" {
 		hdr.Set("Cookie", cookieHdr)
+	}
+	if jwt != "" {
+		// CF Access checks the cf-access-token cookie at the edge. Set it
+		// here so the WS upgrade gets through.
+		hdr.Set("Cookie", "CF_Authorization="+jwt)
 	}
 	dialer := *websocket.DefaultDialer
 	dialer.HandshakeTimeout = 10 * time.Second
